@@ -1,21 +1,26 @@
-// src/stores/playerStore.js
+// src/stores/playerStore.js - FIXED PARSE
 import { defineStore } from "pinia";
 import Papa from "papaparse";
 
-// Hàm chuyển đổi string thành kiểu dữ liệu phù hợp
+// ✅ FIX: Hàm chuyển đổi string thành kiểu dữ liệu đúng
 const transformPlayer = (data) => {
+  // ⭐ CRITICAL FIX: Parse numbers properly
   data.height_cm = data.height_cm ? Number(data.height_cm) : null;
   data.weight_kg = data.weight_kg ? Number(data.weight_kg) : null;
   data.jerseyNumber = data.jerseyNumber ? Number(data.jerseyNumber) : null;
 
+  // ⭐ FIX: totalAttendance MUST be a number
+  data.totalAttendance = data.totalAttendance
+    ? Number(data.totalAttendance)
+    : 0;
+
+  // Parse date
   data.dob =
     data.dob &&
     typeof data.dob === "string" &&
     data.dob.match(/^\d{4}-\d{2}-\d{2}$/)
       ? new Date(data.dob)
       : null;
-
-  data.totalAttendance = data.totalAttendance || 0;
 
   return data;
 };
@@ -66,17 +71,32 @@ export const usePlayerStore = defineStore("players", {
         Papa.parse(csvText, {
           header: true,
           skipEmptyLines: true,
+          dynamicTyping: false, // ⚠️ Keep as string first, then manually convert
           complete: (results) => {
+            // ⭐ Apply transformation to each player
             this.players = results.data.map(transformPlayer);
-            this.players = this.players.map((p) => ({
-              ...p,
-              totalAttendance: p.totalAttendance || 0,
-            }));
+
+            // ⭐ Debug log
+            console.log("✅ Players loaded:", this.players.length);
+            console.log("📊 Sample player:", this.players[0]);
+            console.log(
+              "🔢 totalAttendance types:",
+              this.players.map(
+                (p) =>
+                  `${p.name}: ${
+                    p.totalAttendance
+                  } (${typeof p.totalAttendance})`
+              )
+            );
+          },
+          error: (error) => {
+            console.error("❌ CSV Parse Error:", error);
+            this.error = "Lỗi parse CSV: " + error.message;
           },
         });
       } catch (err) {
         this.error = "Lỗi khi tải dữ liệu cầu thủ: " + err.message;
-        console.error(err);
+        console.error("❌ Load players error:", err);
       } finally {
         this.loading = false;
       }
@@ -93,11 +113,13 @@ export const usePlayerStore = defineStore("players", {
     incrementAttendance(playerId) {
       const player = this.players.find((p) => p.id === playerId);
       if (player) {
-        player.totalAttendance = (player.totalAttendance || 0) + 1;
+        // ⭐ Ensure it's a number before incrementing
+        player.totalAttendance = Number(player.totalAttendance || 0) + 1;
+        console.log(`✅ Incremented ${player.name}: ${player.totalAttendance}`);
       }
     },
 
-    // HÀM TẠO FILE CSV GHI ĐÈ
+    // HÀM XUẤT FILE CSV GHI ĐÈ
     exportStateToCSV(fileName = "players.csv") {
       const dataToExport = this.players.map((player) => ({
         id: player.id,
@@ -112,7 +134,7 @@ export const usePlayerStore = defineStore("players", {
         position: player.position,
         jerseyNumber: player.jerseyNumber,
         imageUrl: player.imageUrl,
-        totalAttendance: player.totalAttendance,
+        totalAttendance: Number(player.totalAttendance || 0), // ⭐ Ensure number
       }));
 
       const csv = Papa.unparse(dataToExport);
@@ -128,6 +150,8 @@ export const usePlayerStore = defineStore("players", {
         link.click();
         document.body.removeChild(link);
       }
+
+      console.log("✅ Exported players.csv");
     },
 
     // Hàm CRUD bị vô hiệu hóa

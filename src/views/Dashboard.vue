@@ -17,15 +17,21 @@ const advancedStats = computed(() => {
   const totalPlayers = players.length;
   const totalSessions = sessions.length;
 
-  // Tổng lượt tham gia
-  const totalAttendances = players.reduce(
-    (sum, p) => sum + (p.totalAttendance || 0),
-    0
-  );
+  // ✅ FIX: Tổng lượt tham gia = tổng số người trong TẤT CẢ sessions
+  const totalAttendances = sessions.reduce((sum, session) => {
+    return sum + (session.attendees?.length || 0);
+  }, 0);
 
-  // Average attendance
+  // ✅ FIX: TB tham gia/người = Tổng buổi tập / Số cầu thủ
+  // (Nếu có 3 buổi và 10 người, TB = 3/10 = 0.3 buổi/người là SAI)
+  // ĐÚNG: TB = Trung bình mỗi người đi bao nhiêu buổi
   const avgAttendance =
-    totalPlayers > 0 ? (totalAttendances / totalPlayers).toFixed(1) : 0;
+    totalPlayers > 0
+      ? (
+          players.reduce((sum, p) => sum + (p.totalAttendance || 0), 0) /
+          totalPlayers
+        ).toFixed(1)
+      : 0;
 
   // Active players (attended > 3 sessions)
   const activePlayers = players.filter(
