@@ -32,11 +32,7 @@
           <div><strong>SĐT:</strong> {{ player.phone || "N/A" }}</div>
           <div>
             <strong>Ngày sinh:</strong>
-            {{
-              player.dob && player.dob.toDate
-                ? player.dob.toDate().toLocaleDateString("vi-VN")
-                : "N/A"
-            }}
+            {{ formatDate(player.dob) }}
           </div>
           <div>
             <strong>Chiều cao:</strong>
@@ -52,10 +48,6 @@
               player.totalAttendance || 0
             }}</span>
             buổi
-          </div>
-          <div>
-            <strong>Số dư quỹ cá nhân:</strong>
-            {{ formatCurrency(player.fundBalance || 0) }}
           </div>
         </div>
 
@@ -82,9 +74,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { usePlayerStore } from "@/stores/playerStore";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 
 const props = defineProps({
@@ -121,11 +113,13 @@ const handleDelete = async () => {
   }
 };
 
-const formatCurrency = (value) => {
-  if (value === null || value === undefined) value = 0;
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(value);
+// HÀM MỚI: Định dạng ngày tháng năm sinh
+const formatDate = (date) => {
+  // Kiểm tra xem nó có phải là đối tượng Date hợp lệ không
+  if (date instanceof Date && !isNaN(date)) {
+    return date.toLocaleDateString("vi-VN");
+  }
+  return "N/A";
 };
 </script>
+<style scoped></style>
