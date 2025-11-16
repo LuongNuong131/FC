@@ -1,78 +1,3 @@
-<template>
-  <div v-if="playerStore.loading" class="text-center">Đang tải...</div>
-  <div v-if="playerStore.error" class="text-red-500">
-    {{ playerStore.error }}
-  </div>
-
-  <div
-    v-if="player && playerWithBMI"
-    class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg"
-  >
-    <div class="flex flex-col md:flex-row md:space-x-6">
-      <div class="flex-shrink-0 md:w-1/3 text-center">
-        <img
-          :src="
-            player.imageUrl ||
-            'https://placehold.co/400x400/e2e8f0/94a3b8?text=No+Image'
-          "
-          :alt="player.name"
-          class="w-48 h-48 rounded-full object-cover mx-auto border-4 border-gray-200 shadow-md"
-          @error="
-            ($event) =>
-              ($event.target.src =
-                'https://placehold.co/400x400/e2e8f0/94a3b8?text=No+Image')
-          "
-        />
-      </div>
-
-      <div class="flex-1 mt-6 md:mt-0">
-        <h1 class="text-4xl font-bold text-gray-900">{{ player.name }}</h1>
-
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-          <div><strong>SĐT:</strong> {{ player.phone || "N/A" }}</div>
-          <div>
-            <strong>Ngày sinh:</strong>
-            {{ formatDate(player.dob) }}
-          </div>
-          <div>
-            <strong>Chiều cao:</strong>
-            {{ player.height_cm ? `${player.height_cm} cm` : "N/A" }}
-          </div>
-          <div>
-            <strong>Cân nặng:</strong>
-            {{ player.weight_kg ? `${player.weight_kg} kg` : "N/A" }}
-          </div>
-          <div>
-            <strong>Tổng tham gia:</strong>
-            <span class="font-bold text-indigo-600">{{
-              player.totalAttendance || 0
-            }}</span>
-            buổi
-          </div>
-        </div>
-
-        <div v-if="playerWithBMI.bmi" class="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold">Chỉ số BMI</h3>
-          <p class="text-3xl font-bold">{{ playerWithBMI.bmi }}</p>
-          <span
-            :class="bmiColorClass"
-            class="mt-1 text-sm font-medium px-3 py-1 rounded-full inline-block"
-          >
-            {{ playerWithBMI.bmiStatus }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div class="mt-8 pt-4 border-t flex justify-end space-x-4">
-      <button @click="handleDelete" class="btn-danger">Xóa Cầu thủ</button>
-      <router-link :to="`/players/${player.id}/edit`" class="btn-primary">
-        Chỉnh sửa
-      </router-link>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { computed, onMounted } from "vue";
 import { usePlayerStore } from "@/stores/playerStore";
@@ -99,27 +24,336 @@ const playerWithBMI = computed(() => {
 const bmiColorClass = computed(() => {
   if (!playerWithBMI.value) return "";
   const status = playerWithBMI.value.bmiStatus;
-  if (status === "Bình thường") return "bg-green-100 text-green-800";
-  if (status === "Thiếu cân") return "bg-blue-100 text-blue-800";
-  if (status === "Thừa cân") return "bg-yellow-100 text-yellow-800";
-  if (status === "Béo phì") return "bg-red-100 text-red-800";
-  return "bg-gray-100 text-gray-800";
+  if (status === "Bình thường")
+    return "bg-green-100 text-green-800 border border-green-300";
+  if (status === "Thiếu cân")
+    return "bg-blue-100 text-blue-800 border border-blue-300";
+  if (status === "Thừa cân")
+    return "bg-yellow-100 text-yellow-800 border border-yellow-300";
+  if (status === "Béo phì")
+    return "bg-red-100 text-red-800 border border-red-300";
+  return "bg-gray-100 text-gray-800 border border-gray-300";
 });
 
-const handleDelete = async () => {
-  if (confirm(`Bạn có chắc muốn xóa cầu thủ ${player.value.name}?`)) {
-    await playerStore.deletePlayer(props.id);
-    router.push("/players");
-  }
-};
-
-// HÀM MỚI: Định dạng ngày tháng năm sinh
 const formatDate = (date) => {
-  // Kiểm tra xem nó có phải là đối tượng Date hợp lệ không
   if (date instanceof Date && !isNaN(date)) {
     return date.toLocaleDateString("vi-VN");
   }
   return "N/A";
 };
+
+const goBack = () => {
+  router.back();
+};
 </script>
-<style scoped></style>
+
+<template>
+  <div class="space-y-6">
+    <!-- Back Button -->
+    <button
+      @click="goBack"
+      class="flex items-center space-x-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all"
+    >
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M10 19l-7-7m0 0l7-7m-7 7h18"
+        />
+      </svg>
+      <span>Quay lại</span>
+    </button>
+
+    <!-- Loading State -->
+    <div
+      v-if="playerStore.loading"
+      class="flex items-center justify-center py-20"
+    >
+      <div class="text-center">
+        <div
+          class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"
+        ></div>
+        <p class="text-lg font-semibold text-gray-700">Đang tải thông tin...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div
+      v-else-if="playerStore.error"
+      class="bg-red-50 border-l-4 border-red-500 rounded-xl p-6"
+    >
+      <div class="flex items-center">
+        <svg
+          class="w-8 h-8 text-red-500 mr-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <h3 class="text-lg font-bold text-red-800">Lỗi</h3>
+          <p class="text-red-600 mt-1">{{ playerStore.error }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Detail Card -->
+    <div
+      v-else-if="player && playerWithBMI"
+      class="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden"
+    >
+      <!-- Header with Gradient -->
+      <div
+        class="relative h-48 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden"
+      >
+        <div class="absolute inset-0 opacity-20">
+          <div
+            class="absolute top-0 right-0 w-64 h-64 bg-white rounded-full mix-blend-overlay filter blur-3xl"
+          ></div>
+        </div>
+        <div class="absolute bottom-6 left-6 flex items-end space-x-4">
+          <div
+            class="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white shadow-2xl transform translate-y-16"
+          >
+            <img
+              :src="
+                player.imageUrl ||
+                'https://placehold.co/400x400/e2e8f0/94a3b8?text=No+Image'
+              "
+              :alt="player.name"
+              class="w-full h-full object-cover"
+              @error="
+                ($event) =>
+                  ($event.target.src =
+                    'https://placehold.co/400x400/e2e8f0/94a3b8?text=No+Image')
+              "
+            />
+          </div>
+          <div class="pb-4">
+            <h1 class="text-4xl font-black text-white drop-shadow-lg">
+              {{ player.name }}
+            </h1>
+            <div class="flex items-center space-x-2 mt-2">
+              <span
+                class="px-3 py-1 bg-white/20 backdrop-blur-md text-white font-bold rounded-full border border-white/30"
+              >
+                #{{ player.jerseyNumber || "?" }}
+              </span>
+              <span
+                class="px-3 py-1 bg-white/20 backdrop-blur-md text-white font-bold rounded-full border border-white/30"
+              >
+                {{ player.position || "N/A" }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-8 pt-20">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Basic Info -->
+          <div class="space-y-4">
+            <h3 class="text-xl font-black text-gray-900 mb-4 flex items-center">
+              <svg
+                class="w-6 h-6 mr-2 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Thông Tin Cơ Bản
+            </h3>
+
+            <div class="space-y-3">
+              <div class="p-4 bg-gray-50 rounded-xl">
+                <p class="text-sm font-semibold text-gray-500 mb-1">
+                  📞 Số điện thoại
+                </p>
+                <p class="text-lg font-bold text-gray-900">
+                  {{ player.phone || "N/A" }}
+                </p>
+              </div>
+
+              <div class="p-4 bg-gray-50 rounded-xl">
+                <p class="text-sm font-semibold text-gray-500 mb-1">
+                  🎂 Ngày sinh
+                </p>
+                <p class="text-lg font-bold text-gray-900">
+                  {{ formatDate(player.dob) }}
+                </p>
+              </div>
+
+              <div class="p-4 bg-gray-50 rounded-xl">
+                <p class="text-sm font-semibold text-gray-500 mb-1">
+                  📏 Chiều cao
+                </p>
+                <p class="text-lg font-bold text-gray-900">
+                  {{ player.height_cm ? `${player.height_cm} cm` : "N/A" }}
+                </p>
+              </div>
+
+              <div class="p-4 bg-gray-50 rounded-xl">
+                <p class="text-sm font-semibold text-gray-500 mb-1">
+                  ⚖️ Cân nặng
+                </p>
+                <p class="text-lg font-bold text-gray-900">
+                  {{ player.weight_kg ? `${player.weight_kg} kg` : "N/A" }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="space-y-4">
+            <h3 class="text-xl font-black text-gray-900 mb-4 flex items-center">
+              <svg
+                class="w-6 h-6 mr-2 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Thống Kê
+            </h3>
+
+            <!-- Attendance -->
+            <div
+              class="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-bold text-gray-700 flex items-center">
+                  <svg
+                    class="w-5 h-5 mr-2 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Tổng Tham Gia
+                </p>
+                <p class="text-4xl font-black text-green-600">
+                  {{ player.totalAttendance || 0 }}
+                </p>
+              </div>
+              <p class="text-xs text-gray-600">buổi tập</p>
+            </div>
+
+            <!-- BMI Card -->
+            <div
+              v-if="playerWithBMI.bmi"
+              class="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-200"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold text-gray-700">Chỉ Số BMI</p>
+                <p class="text-4xl font-black text-indigo-600">
+                  {{ playerWithBMI.bmi }}
+                </p>
+              </div>
+
+              <div
+                class="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-3"
+              >
+                <div
+                  class="h-full bg-gradient-to-r from-indigo-400 to-purple-600 rounded-full transition-all duration-500"
+                  :style="{
+                    width: `${Math.min(
+                      (parseFloat(playerWithBMI.bmi) / 30) * 100,
+                      100
+                    )}%`,
+                  }"
+                ></div>
+              </div>
+
+              <span
+                :class="bmiColorClass"
+                class="inline-block text-sm font-bold px-4 py-2 rounded-full"
+              >
+                {{ playerWithBMI.bmiStatus }}
+              </span>
+            </div>
+
+            <div
+              v-else
+              class="p-6 bg-gray-50 rounded-2xl border-2 border-gray-200"
+            >
+              <p class="text-sm text-gray-400 text-center">
+                Chưa đủ thông tin để tính BMI
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ REMOVED Edit Button - View Only Mode -->
+        <div class="mt-8 pt-6 border-t border-gray-200 flex justify-center">
+          <button
+            @click="goBack"
+            class="px-8 py-3 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-700 font-bold rounded-xl transition-all transform hover:scale-105 flex items-center space-x-2"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            <span>Quay lại danh sách</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.space-y-4 > * {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+</style>

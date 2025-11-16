@@ -1,204 +1,857 @@
-<template>
-  <div class="space-y-6">
-    <h1 class="text-3xl font-bold text-gray-800">📋 Điểm Danh Buổi Tập</h1>
-
-    <div class="bg-white p-6 rounded-xl shadow-lg">
-      <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-blue-600">
-        Tạo Buổi Điểm Danh Mới
-      </h2>
-
-      <form @submit.prevent="handleSubmit">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div>
-            <label for="session-date" class="form-label">Ngày *</label>
-            <input
-              id="session-date"
-              v-model="sessionForm.date"
-              type="date"
-              class="form-input"
-              required
-            />
-          </div>
-          <div class="md:col-span-2">
-            <label for="session-note" class="form-label">Ghi Chú</label>
-            <input
-              id="session-note"
-              v-model="sessionForm.note"
-              type="text"
-              class="form-input"
-              placeholder="Ví dụ: Đá tập công viên Hoàng Văn Thụ"
-            />
-          </div>
-        </div>
-
-        <h3 class="text-lg font-medium mb-3">Danh Sách Cầu Thủ:</h3>
-
-        <div
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto p-2 border rounded-lg bg-gray-50"
-        >
-          <div
-            v-for="player in playerStore.players"
-            :key="player.id"
-            class="flex items-center p-2 bg-white rounded-lg shadow-sm hover:shadow-md transition duration-200"
-          >
-            <input
-              type="checkbox"
-              :id="player.id"
-              :value="player.id"
-              v-model="sessionForm.attendees"
-              class="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-            />
-            <label
-              :for="player.id"
-              class="ml-3 text-sm font-medium text-gray-700 select-none cursor-pointer truncate"
-            >
-              {{ player.name }}
-            </label>
-          </div>
-        </div>
-
-        <p
-          v-if="playerStore.players.length === 0 && !playerStore.loading"
-          class="text-center text-red-500 mt-4"
-        >
-          Vui lòng thêm cầu thủ vào file public/players.csv trước khi điểm danh.
-        </p>
-
-        <button
-          type="submit"
-          :disabled="!isFormValid || attendanceStore.loading"
-          class="btn-primary mt-6 w-full"
-        >
-          {{ attendanceStore.loading ? "Đang lưu..." : "Lưu Buổi Điểm Danh" }}
-        </button>
-      </form>
-    </div>
-
-    <div class="bg-white p-6 rounded-xl shadow-lg">
-      <h2 class="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">
-        Lịch Sử Các Buổi Tập ({{ attendanceStore.sessions.length }})
-      </h2>
-
-      <div id="attendance-report-area">
-        <ul
-          v-if="attendanceStore.sessions.length > 0"
-          class="divide-y divide-gray-200"
-        >
-          <li
-            v-for="session in attendanceStore.sessions"
-            :key="session.id"
-            class="py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center"
-          >
-            <div class="flex-1 mr-4 mb-2 sm:mb-0">
-              <p class="text-lg font-medium text-gray-800">
-                🗓️ Ngày: {{ formatDate(session.date) }}
-                <span class="text-sm font-normal text-gray-500 ml-2"
-                  >({{ session.attendees.length }} người tham gia)</span
-                >
-              </p>
-              <p v-if="session.note" class="text-sm italic text-gray-600">
-                Ghi chú: {{ session.note }}
-              </p>
-
-              <div class="mt-2 text-sm text-gray-700">
-                <strong>Tham gia:</strong>
-                <span class="block sm:inline">{{
-                  getAttendeeNames(session.attendees).join(", ")
-                }}</span>
-              </div>
-            </div>
-
-            <div
-              class="space-x-2 flex-shrink-0 w-full sm:w-auto flex justify-end"
-            >
-              <button
-                @click="attendanceStore.exportSessionToExcel(session.id)"
-                class="btn-secondary py-1 px-3 text-sm"
-              >
-                Xuất Excel
-              </button>
-            </div>
-          </li>
-        </ul>
-        <div v-else class="text-center text-gray-500">
-          Chưa có buổi điểm danh nào.
-        </div>
-      </div>
-
-      <div class="mt-6 border-t pt-4">
-        <button
-          @click="handleExportImage"
-          :disabled="attendanceStore.loading"
-          class="btn-primary py-2 px-4 w-full"
-        >
-          {{
-            attendanceStore.loading
-              ? "Đang tạo ảnh..."
-              : "📸 Xuất Ảnh TỔNG HỢP Lịch Sử Điểm Danh"
-          }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { reactive, computed, onMounted } from "vue";
-import { usePlayerStore } from "@/stores/playerStore";
+import { ref, computed, onMounted } from "vue";
 import { useAttendanceStore } from "@/stores/attendanceStore";
+import { usePlayerStore } from "@/stores/playerStore";
 
-const playerStore = usePlayerStore();
+// Stores
 const attendanceStore = useAttendanceStore();
+const playerStore = usePlayerStore();
 
-const sessionForm = reactive({
+// Session Form
+const sessionForm = ref({
   date: new Date().toISOString().split("T")[0],
   note: "",
   attendees: [],
 });
 
+// Computed
 const isFormValid = computed(() => {
-  return sessionForm.date && sessionForm.attendees.length > 0;
+  return sessionForm.value.date && sessionForm.value.attendees.length > 0;
 });
 
-onMounted(() => {
-  playerStore.fetchPlayers();
-  attendanceStore.fetchSessions();
-});
-
-const handleSubmit = async () => {
-  await attendanceStore.addSession(sessionForm);
-
-  if (!attendanceStore.error) {
-    alert("Lưu buổi điểm danh thành công!");
-    sessionForm.note = "";
-    sessionForm.attendees = [];
-  } else {
-    alert(`Lỗi: ${attendanceStore.error}`);
-  }
-};
-
-const getAttendeeNames = (attendeeIds) => {
-  return attendeeIds.map((id) => {
-    const player = playerStore.players.find((p) => p.id === id);
-    return player ? player.name : `[ID:${id} - Không tồn tại]`;
+// Methods
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("vi-VN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 };
 
-const handleExportImage = () => {
-  attendanceStore.exportToImage(
+const getAttendeeNames = (attendeeIds) => {
+  return attendeeIds
+    .map((id) => {
+      const player = playerStore.players.find((p) => p.id === id);
+      return player ? player.name : null;
+    })
+    .filter(Boolean);
+};
+
+const selectAll = () => {
+  sessionForm.value.attendees = playerStore.players.map((p) => p.id);
+};
+
+const deselectAll = () => {
+  sessionForm.value.attendees = [];
+};
+
+const handleSubmit = async () => {
+  if (!isFormValid.value) return;
+
+  attendanceStore.addSession({
+    date: sessionForm.value.date,
+    note: sessionForm.value.note,
+    attendees: sessionForm.value.attendees,
+  });
+
+  // Reset form
+  sessionForm.value = {
+    date: new Date().toISOString().split("T")[0],
+    note: "",
+    attendees: [],
+  };
+};
+
+const confirmDelete = (sessionId) => {
+  if (confirm("Bạn có chắc chắn muốn xóa buổi tập này?")) {
+    const index = attendanceStore.sessions.findIndex((s) => s.id === sessionId);
+    if (index !== -1) {
+      attendanceStore.sessions.splice(index, 1);
+    }
+  }
+};
+
+const handleExportImage = async () => {
+  await attendanceStore.exportToImage(
     "attendance-report-area",
-    "Lich_Su_Diem_Danh_Tong_Hop"
+    "lich-su-diem-danh"
   );
 };
 
-const formatDate = (date) => {
-  if (date instanceof Date) {
-    return date.toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }
-  return date;
-};
+// Lifecycle
+onMounted(async () => {
+  await playerStore.fetchPlayers();
+  await attendanceStore.fetchSessions();
+});
 </script>
+
+<template>
+  <div class="space-y-8">
+    <!-- Hero Header -->
+    <div
+      class="relative overflow-hidden bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 rounded-3xl shadow-2xl p-8"
+    >
+      <div class="absolute inset-0 opacity-20">
+        <div
+          class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"
+        ></div>
+        <div
+          class="absolute bottom-0 right-0 w-96 h-96 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-2000"
+        ></div>
+      </div>
+
+      <div class="relative z-10">
+        <h1 class="text-5xl font-black text-white mb-2 flex items-center">
+          <span class="text-6xl mr-4 animate-bounce">📋</span>
+          Điểm Danh Buổi Tập
+        </h1>
+        <p class="text-green-100 text-lg">
+          Quản lý attendance hiệu quả và chuyên nghiệp
+        </p>
+      </div>
+    </div>
+
+    <!-- Success Toast -->
+    <transition name="slide-down">
+      <div
+        v-if="attendanceStore.lastConfirmedSession"
+        class="relative overflow-hidden bg-white rounded-2xl shadow-2xl border-l-8 border-green-500"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-r from-green-50/50 to-emerald-50/50"
+        ></div>
+
+        <div class="relative p-6">
+          <button
+            @click="attendanceStore.lastConfirmedSession = null"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+
+          <div class="flex items-start space-x-4">
+            <div class="flex-shrink-0">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg animate-scale-in"
+              >
+                <svg
+                  class="w-9 h-9 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="3"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div class="flex-1 pt-1">
+              <h3 class="text-2xl font-black text-gray-900 mb-2">
+                Thành Công! ✨
+              </h3>
+              <p class="text-gray-700 mb-1">
+                Ngày:
+                <strong class="text-green-600">{{
+                  formatDate(attendanceStore.lastConfirmedSession.date)
+                }}</strong>
+              </p>
+              <p class="text-sm text-gray-600 mb-4">
+                🎉 Đã xuất <strong class="text-green-600">2 file CSV</strong> và
+                cập nhật database
+              </p>
+
+              <div
+                class="bg-white rounded-xl p-4 shadow-inner border border-gray-100"
+              >
+                <p
+                  class="text-sm font-bold text-gray-800 mb-2 flex items-center"
+                >
+                  <svg
+                    class="w-4 h-4 mr-2 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  {{ attendanceStore.lastConfirmedSession.attendees.length }}
+                  Cầu Thủ Tham Gia
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="(name, idx) in getAttendeeNames(
+                      attendanceStore.lastConfirmedSession.attendees
+                    )"
+                    :key="name"
+                    class="inline-flex items-center px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-sm font-medium rounded-full border border-green-200 animate-fade-in"
+                    :style="{ animationDelay: `${idx * 50}ms` }"
+                  >
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    {{ name }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Create Session Form -->
+    <div
+      class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+    >
+      <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+        <h2 class="text-3xl font-black text-white flex items-center">
+          <svg
+            class="w-8 h-8 mr-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Tạo Buổi Điểm Danh Mới
+        </h2>
+        <p class="text-indigo-100 mt-1">Chọn ngày và cầu thủ tham gia</p>
+      </div>
+
+      <form @submit.prevent="handleSubmit" class="p-6">
+        <!-- Date & Note -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="group">
+            <label
+              for="session-date"
+              class="block text-sm font-bold text-gray-700 mb-2 flex items-center"
+            >
+              <svg
+                class="w-4 h-4 mr-2 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Ngày Tập *
+            </label>
+            <input
+              id="session-date"
+              v-model="sessionForm.date"
+              type="date"
+              class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all group-hover:border-indigo-400"
+              required
+            />
+          </div>
+
+          <div class="md:col-span-2 group">
+            <label
+              for="session-note"
+              class="block text-sm font-bold text-gray-700 mb-2 flex items-center"
+            >
+              <svg
+                class="w-4 h-4 mr-2 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                />
+              </svg>
+              Ghi Chú (không bắt buộc)
+            </label>
+            <input
+              id="session-note"
+              v-model="sessionForm.note"
+              type="text"
+              class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all group-hover:border-indigo-400"
+              placeholder="VD: Đá tập công viên Hoàng Văn Thụ, luyện tập phòng ngự..."
+            />
+          </div>
+        </div>
+
+        <!-- Player Selection -->
+        <div class="mb-8">
+          <div
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 pb-4 border-b-2 border-gray-100"
+          >
+            <div>
+              <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                <svg
+                  class="w-6 h-6 mr-2 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                Chọn Cầu Thủ
+              </h3>
+              <p class="text-sm text-gray-600 mt-1">
+                Đã chọn:
+                <strong class="text-indigo-600 text-lg">{{
+                  sessionForm.attendees.length
+                }}</strong>
+                / {{ playerStore.players.length }}
+              </p>
+            </div>
+
+            <div class="flex space-x-2 mt-3 sm:mt-0">
+              <button
+                type="button"
+                @click="selectAll"
+                class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
+              >
+                <svg
+                  class="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Chọn Tất Cả
+              </button>
+              <button
+                type="button"
+                @click="deselectAll"
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-lg transition-colors duration-300 flex items-center"
+              >
+                <svg
+                  class="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                Bỏ Chọn
+              </button>
+            </div>
+          </div>
+
+          <!-- Players Grid -->
+          <div
+            v-if="playerStore.players.length > 0"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300"
+          >
+            <label
+              v-for="player in playerStore.players"
+              :key="player.id"
+              class="group relative flex items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-lg cursor-pointer transition-all duration-300 border-2 transform hover:scale-105"
+              :class="
+                sessionForm.attendees.includes(player.id)
+                  ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50'
+                  : 'border-transparent hover:border-indigo-200'
+              "
+            >
+              <input
+                type="checkbox"
+                :id="player.id"
+                :value="player.id"
+                v-model="sessionForm.attendees"
+                class="h-5 w-5 text-indigo-600 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-all"
+              />
+
+              <div class="ml-3 flex-1 min-w-0">
+                <p
+                  class="font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors"
+                >
+                  {{ player.name }}
+                </p>
+                <div class="flex items-center space-x-2 mt-1">
+                  <span
+                    v-if="player.jerseyNumber"
+                    class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full"
+                    >#{{ player.jerseyNumber }}</span
+                  >
+                  <span
+                    v-if="player.position"
+                    class="text-xs text-gray-500 truncate"
+                    >{{ player.position }}</span
+                  >
+                </div>
+              </div>
+
+              <div
+                v-if="sessionForm.attendees.includes(player.id)"
+                class="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg animate-scale-in"
+              >
+                <svg
+                  class="w-4 h-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="3"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </label>
+          </div>
+
+          <!-- Empty State -->
+          <div
+            v-else
+            class="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300"
+          >
+            <div class="text-6xl mb-4">👥</div>
+            <p class="text-xl font-semibold text-gray-600 mb-2">
+              Chưa có cầu thủ
+            </p>
+            <p class="text-gray-500 mb-4">
+              Vui lòng thêm cầu thủ vào file players.csv
+            </p>
+            <a
+              href="/players.csv"
+              download
+              class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+            >
+              <svg
+                class="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Tải File Mẫu
+            </a>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          :disabled="!isFormValid || attendanceStore.loading"
+          class="relative w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-lg font-black rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 overflow-hidden group"
+        >
+          <div
+            class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"
+          ></div>
+          <span class="relative flex items-center justify-center">
+            <svg
+              v-if="!attendanceStore.loading"
+              class="w-6 h-6 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <div
+              v-else
+              class="w-6 h-6 mr-2 border-3 border-white border-t-transparent rounded-full animate-spin"
+            ></div>
+            {{
+              attendanceStore.loading ? "Đang Lưu..." : "💾 Lưu Buổi Điểm Danh"
+            }}
+          </span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Session History -->
+    <div
+      class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+    >
+      <div class="bg-gradient-to-r from-purple-500 to-pink-600 p-6">
+        <div
+          class="flex flex-col sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <h2 class="text-3xl font-black text-white flex items-center">
+              <svg
+                class="w-8 h-8 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Lịch Sử Điểm Danh
+            </h2>
+            <p class="text-purple-100 mt-1">
+              Tổng cộng
+              <strong>{{ attendanceStore.sessions.length }}</strong> buổi tập
+            </p>
+          </div>
+
+          <div class="flex space-x-2 mt-3 sm:mt-0">
+            <button
+              v-if="attendanceStore.sessions.length > 0"
+              @click="handleExportImage"
+              :disabled="attendanceStore.loading"
+              class="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-semibold rounded-xl transition-all duration-300 flex items-center border border-white/30"
+            >
+              <svg
+                class="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Xuất Ảnh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="attendance-report-area" class="p-6">
+        <!-- Sessions List -->
+        <div v-if="attendanceStore.sessions.length > 0" class="space-y-4">
+          <div
+            v-for="(session, index) in attendanceStore.sessions"
+            :key="session.id"
+            class="group relative bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-gray-100 hover:border-indigo-200 hover:shadow-xl transition-all duration-300 overflow-hidden"
+            :style="{ animationDelay: `${index * 50}ms` }"
+          >
+            <div
+              class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600"
+            ></div>
+
+            <div class="p-6 pl-8">
+              <div
+                class="flex flex-col lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div class="flex-1 mb-4 lg:mb-0">
+                  <div class="flex items-center space-x-3 mb-2">
+                    <div
+                      class="flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg font-semibold"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      {{ formatDate(session.date) }}
+                    </div>
+
+                    <div
+                      class="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg font-semibold"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                      {{ session.attendees.length }} người
+                    </div>
+                  </div>
+
+                  <p
+                    v-if="session.note"
+                    class="text-gray-700 italic mb-3 flex items-start"
+                  >
+                    <svg
+                      class="w-4 h-4 mr-2 mt-1 text-gray-400 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                      />
+                    </svg>
+                    <span>{{ session.note }}</span>
+                  </p>
+
+                  <details class="group/details">
+                    <summary
+                      class="cursor-pointer text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-1 transform group-open/details:rotate-90 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                      Xem danh sách
+                    </summary>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <span
+                        v-for="name in getAttendeeNames(session.attendees)"
+                        :key="name"
+                        class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full border border-gray-200"
+                      >
+                        <span
+                          class="w-2 h-2 bg-green-500 rounded-full mr-2"
+                        ></span>
+                        {{ name }}
+                      </span>
+                    </div>
+                  </details>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    @click="attendanceStore.exportSessionToExcel(session.id)"
+                    class="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
+                    title="Xuất Excel"
+                  >
+                    <svg
+                      class="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Excel
+                  </button>
+
+                  <button
+                    @click="confirmDelete(session.id)"
+                    class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg"
+                    title="Xóa"
+                  >
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="text-center py-20">
+          <div
+            class="inline-block p-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl mb-6"
+          >
+            <svg
+              class="w-24 h-24 text-gray-300 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <p class="text-xl font-semibold text-gray-600 mb-2">
+            Chưa có buổi điểm danh nào
+          </p>
+          <p class="text-gray-500">
+            Tạo buổi điểm danh đầu tiên bằng form bên trên
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Animations */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+@keyframes scale-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+/* Transitions */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* Scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+</style>

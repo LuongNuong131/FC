@@ -15,7 +15,6 @@ const transformPlayer = (data) => {
       ? new Date(data.dob)
       : null;
 
-  // Khởi tạo các trường động cần thiết
   data.totalAttendance = data.totalAttendance || 0;
 
   return data;
@@ -91,7 +90,47 @@ export const usePlayerStore = defineStore("players", {
       this.player = this.players.find((p) => p.id === id) || null;
     },
 
-    // Các hàm CRUD bị vô hiệu hóa
+    incrementAttendance(playerId) {
+      const player = this.players.find((p) => p.id === playerId);
+      if (player) {
+        player.totalAttendance = (player.totalAttendance || 0) + 1;
+      }
+    },
+
+    // HÀM TẠO FILE CSV GHI ĐÈ
+    exportStateToCSV(fileName = "players.csv") {
+      const dataToExport = this.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        phone: player.phone,
+        dob:
+          player.dob instanceof Date
+            ? player.dob.toISOString().split("T")[0]
+            : "",
+        height_cm: player.height_cm,
+        weight_kg: player.weight_kg,
+        position: player.position,
+        jerseyNumber: player.jerseyNumber,
+        imageUrl: player.imageUrl,
+        totalAttendance: player.totalAttendance,
+      }));
+
+      const csv = Papa.unparse(dataToExport);
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    },
+
+    // Hàm CRUD bị vô hiệu hóa
     addPlayer(playerData) {
       alert(
         "Chức năng thêm cầu thủ đã bị vô hiệu hóa. Vui lòng thêm cầu thủ vào file public/players.csv."
@@ -106,13 +145,6 @@ export const usePlayerStore = defineStore("players", {
       alert(
         "Chức năng xóa cầu thủ đã bị vô hiệu hóa. Vui lòng xóa cầu thủ trong file public/players.csv."
       );
-    },
-
-    incrementAttendance(playerId) {
-      const player = this.players.find((p) => p.id === playerId);
-      if (player) {
-        player.totalAttendance = (player.totalAttendance || 0) + 1;
-      }
     },
   },
 });

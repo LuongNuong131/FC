@@ -1,4 +1,4 @@
-id,name,phone,dob,height_cm,weight_kg,position,jerseyNumber,imageUrl
-p1,Trần Quang Lương,0907987126,2005-01-13,177,85,Midfielder,22,/images/players/LuNu.jpg
-p2,Trần Văn B,0901xxx222,1998-11-20,180,75,Forward,10,https://placehold.co/150x150?text=B
-p3,Lê Văn C,0901xxx333,2000-01-01,168,62,Defender,5,https://placehold.co/150x150?text=C
+id,name,phone,dob,height_cm,weight_kg,position,jerseyNumber,imageUrl,totalAttendance
+p1,Trần Quang Lương,0907987126,2005-01-13,177,85,Forward,22,/images/players/LuNu.jpg,2
+p2,Trịnh Hoàng Bảo Huy,0375244203,2004-03-07,170,70,Forward,29,/images/players/HuyNho.jpg,1
+p3,Lê Văn C,0901xxx333,2000-01-01,168,62,Defender,5,https://placehold.co/150x150?text=C,0
