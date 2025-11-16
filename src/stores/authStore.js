@@ -1,91 +1,70 @@
-// src/stores/authStore.js - COMPLETE AUTH SYSTEM
+// src/stores/authStore.js
 import { defineStore } from "pinia";
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 
-export const useAuthStore = defineStore("auth", {
-  state: () => ({
-    isAuthenticated: false,
-    user: null,
-    userRole: null, // 'admin' or 'guest'
-  }),
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "123";
 
-  getters: {
-    isAdmin: (state) => state.userRole === "admin",
-    isGuest: (state) => state.userRole === "guest",
+export const useAuthStore = defineStore("auth", () => {
+  const router = useRouter();
+  const user = ref(null);
 
-    // Quyền truy cập
-    canAccessAttendance: (state) => state.userRole === "admin",
-    canEditPlayers: (state) => false, // Không ai được edit
-    canViewDashboard: (state) => state.isAuthenticated, // Cả 2 đều xem được
-    canViewPlayers: (state) => state.isAuthenticated, // Cả 2 đều xem được
-  },
+  const isAuthenticated = computed(() => !!user.value);
+  const isAdmin = computed(() => user.value?.role === "admin");
 
-  actions: {
-    // 🔐 Đăng nhập Admin
-    loginAsAdmin(username, password) {
-      // Check credentials - KHÔNG public ra ngoài UI
-      if (username === "LuNu" && password === "123456789") {
-        this.isAuthenticated = true;
-        this.userRole = "admin";
-        this.user = {
-          username: "LuNu",
-          displayName: "Admin",
-          role: "admin",
-        };
+  // Load auth state from localStorage
+  const checkAuth = () => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      user.value = JSON.parse(savedUser);
+    }
+  };
 
-        // Save to localStorage
-        localStorage.setItem("auth_user", JSON.stringify(this.user));
-        localStorage.setItem("auth_role", "admin");
-
-        return { success: true };
-      }
-
+  const loginAsAdmin = (username, password) => {
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      user.value = {
+        displayName: "Admin",
+        role: "admin",
+      };
+      localStorage.setItem("user", JSON.stringify(user.value));
+      return { success: true };
+    } else {
       return {
         success: false,
-        message: "Tên đăng nhập hoặc mật khẩu không đúng!",
+        message: "Tên đăng nhập hoặc mật khẩu không đúng.",
       };
-    },
+    }
+  };
 
-    // 👁️ Đăng nhập Khách (không cần mật khẩu)
-    loginAsGuest() {
-      this.isAuthenticated = true;
-      this.userRole = "guest";
-      this.user = {
-        username: "guest",
-        displayName: "Khách",
-        role: "guest",
-      };
+  const loginAsGuest = () => {
+    user.value = {
+      displayName: "Khách",
+      role: "guest",
+    };
+    localStorage.setItem("user", JSON.stringify(user.value));
+  };
 
-      // Save to localStorage
-      localStorage.setItem("auth_user", JSON.stringify(this.user));
-      localStorage.setItem("auth_role", "guest");
+  const logout = () => {
+    user.value = null;
+    localStorage.removeItem("user");
+    // Force reload on logout to clear all Pinia state (optional but safer for CSV-based system)
+    router.push("/login");
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
 
-      return { success: true };
-    },
+  // Tự động kiểm tra khi store được tạo
+  checkAuth();
 
-    // 🚪 Đăng xuất
-    logout() {
-      this.isAuthenticated = false;
-      this.user = null;
-      this.userRole = null;
-
-      // Clear localStorage
-      localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_role");
-    },
-
-    // ✅ Kiểm tra auth từ localStorage
-    checkAuth() {
-      const savedUser = localStorage.getItem("auth_user");
-      const savedRole = localStorage.getItem("auth_role");
-
-      if (savedUser && savedRole) {
-        this.isAuthenticated = true;
-        this.user = JSON.parse(savedUser);
-        this.userRole = savedRole;
-        return true;
-      }
-
-      return false;
-    },
-  },
+  return {
+    user,
+    isAuthenticated,
+    isAdmin,
+    loginAsAdmin,
+    loginAsGuest,
+    logout,
+    checkAuth,
+  };
 });

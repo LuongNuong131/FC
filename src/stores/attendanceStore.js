@@ -1,293 +1,259 @@
-// src/stores/attendanceStore.js - FIXED VERSION
+// src/stores/attendanceStore.js
+
 import { defineStore } from "pinia";
-import { usePlayerStore } from "./playerStore";
-import * as XLSX from "xlsx";
-import html2canvas from "html2canvas";
+import { ref, computed } from "vue";
+import { usePlayerStore } from "@/stores/playerStore";
 import Papa from "papaparse";
+import html2canvas from "html2canvas";
 
-export const useAttendanceStore = defineStore("attendance", {
-  state: () => ({
-    sessions: [],
-    loading: false,
-    error: null,
-    lastConfirmedSession: null,
-  }),
+// NEW: Sử dụng CSV file content để fetch sessions
+const SESSIONS_CSV_PATH = "/sessions.csv";
+const LAST_CONFIRMED_SESSION_KEY = "lastConfirmedSession";
 
-  actions: {
-    // ✅ FIX: Load sessions từ CSV file
-    async fetchSessions() {
-      this.loading = true;
-      this.error = null;
+export const useAttendanceStore = defineStore("attendance", () => {
+  const playerStore = usePlayerStore();
+  const sessions = ref([]);
+  const loading = ref(false);
+  const error = ref(null);
+  const lastConfirmedSession = ref(
+    JSON.parse(localStorage.getItem(LAST_CONFIRMED_SESSION_KEY))
+  );
 
-      try {
-        // 1. Thử load từ CSV file trước
-        const response = await fetch("/sessions.csv");
+  // --- Helpers ---
+  const saveConfirmedSessionToLocalStorage = (session) => {
+    localStorage.setItem(LAST_CONFIRMED_SESSION_KEY, JSON.stringify(session));
+    lastConfirmedSession.value = session;
+  };
 
-        if (response.ok) {
-          const csvText = await response.text();
+  const generateUniqueId = (prefix = "s") => {
+    return (
+      prefix +
+      Date.now().toString(36) +
+      Math.random().toString(36).substring(2, 5)
+    );
+  };
 
-          Papa.parse(csvText, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              this.sessions = results.data.map((session) => ({
-                id: session.id,
-                date: new Date(session.date),
-                note: session.note || "",
-                attendees: session.attendeeIds
-                  ? session.attendeeIds.split(",").map((id) => id.trim())
-                  : [],
-                createdAt: session.createdAt
-                  ? new Date(session.createdAt)
-                  : new Date(),
-              }));
+  // --- CSV Logic (Fetching) ---
+  const fetchSessions = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      // Fetch từ CSV
+      const response = await fetch(SESSIONS_CSV_PATH);
+      const csvText = await response.text();
 
-              console.log("✅ Loaded sessions from CSV:", this.sessions.length);
-            },
-            error: (error) => {
-              console.error("❌ Parse CSV error:", error);
-              this.loadFromLocalStorage();
-            },
-          });
-        } else {
-          // CSV không tồn tại, load từ localStorage
-          console.warn("⚠️ sessions.csv not found, loading from localStorage");
-          this.loadFromLocalStorage();
-        }
-      } catch (err) {
-        console.error("❌ Fetch sessions error:", err);
-        this.loadFromLocalStorage();
-      } finally {
-        this.loading = false;
+      const { data, errors } = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+      });
+
+      if (errors.length > 0) {
+        console.error("CSV Parsing Errors:", errors);
+        throw new Error("Lỗi định dạng file sessions.csv");
       }
-    },
 
-    // Helper: Load từ localStorage
-    loadFromLocalStorage() {
-      try {
-        const savedSessions = localStorage.getItem("attendance_sessions");
-        if (savedSessions) {
-          this.sessions = JSON.parse(savedSessions).map((s) => ({
-            ...s,
-            date: new Date(s.date),
-            createdAt: new Date(s.createdAt),
-          }));
-          console.log(
-            "✅ Loaded sessions from localStorage:",
-            this.sessions.length
-          );
-        } else {
-          this.sessions = [];
-        }
-      } catch (err) {
-        console.warn("⚠️ Cannot load from localStorage:", err);
-        this.sessions = [];
-      }
-    },
-
-    // ✅ Add session với sync đầy đủ
-    addSession(sessionData) {
-      this.loading = true;
-      const playerStore = usePlayerStore();
-
-      try {
-        // 1. Tạo session object
-        const newSession = {
-          id: `s${Date.now()}`,
-          date: new Date(sessionData.date),
-          note: sessionData.note || "",
-          attendees: sessionData.attendees,
-          createdAt: new Date(),
-        };
-
-        // 2. Cập nhật totalAttendance trong PlayerStore
-        sessionData.attendees.forEach((playerId) => {
-          playerStore.incrementAttendance(playerId);
-        });
-
-        // 3. Thêm session vào store
-        this.sessions.unshift(newSession);
-
-        // 4. Lưu vào localStorage
-        localStorage.setItem(
-          "attendance_sessions",
-          JSON.stringify(this.sessions)
-        );
-
-        // 5. ⭐ XUẤT 2 FILE CSV
-        // File 1: players.csv (updated totalAttendance)
-        playerStore.exportStateToCSV("players.csv");
-
-        // File 2: ThamGia_DATE.csv (attendee list)
-        this.exportSessionAttendees(newSession);
-
-        // File 3: sessions.csv (full history) - TỰ ĐỘNG
-        this.exportSessionsToCSV();
-
-        // 6. Lưu trạng thái success
-        this.lastConfirmedSession = newSession;
-
-        console.log("✅ Session added successfully:", newSession.id);
-      } catch (err) {
-        this.error = "Lỗi khi thêm buổi điểm danh: " + err.message;
-        console.error("❌ Add session error:", err);
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    // ✅ XUẤT FILE SESSIONS.CSV (Full History)
-    exportSessionsToCSV() {
-      const dataToExport = this.sessions.map((session) => ({
-        id: session.id,
-        date:
-          session.date instanceof Date
-            ? session.date.toISOString().split("T")[0]
-            : session.date,
-        note: session.note || "",
-        attendeeIds: Array.isArray(session.attendees)
-          ? session.attendees.join(",")
-          : session.attendees,
-        createdAt:
-          session.createdAt instanceof Date
-            ? session.createdAt.toISOString()
-            : session.createdAt,
+      // Xử lý attendees (danh sách ID)
+      const formattedSessions = data.map((s) => ({
+        ...s,
+        attendees: (s.attendeeIds || "")
+          .split(",")
+          .filter((id) => id.trim())
+          .map((id) => id.trim()),
       }));
+      sessions.value = formattedSessions.reverse(); // Đảo ngược để sessions mới nhất lên đầu
+    } catch (err) {
+      error.value =
+        "Không thể tải file sessions.csv. Hãy đảm bảo file đã tồn tại trong public/. Chi tiết: " +
+        err.message;
+      sessions.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
-      const csv = Papa.unparse(dataToExport);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // --- Main Actions ---
+
+  // Thêm session mới vào MEMORY VÀ CẬP NHẬT PLAYER ATTENDANCE
+  const addSession = (sessionData) => {
+    // 1. Tạo session mới
+    const newSession = {
+      id: generateUniqueId(),
+      date: sessionData.date,
+      note: sessionData.note,
+      attendees: sessionData.attendees,
+      attendeeIds: sessionData.attendees.join(","), // CSV format
+      createdAt: new Date().toISOString(),
+    };
+
+    // 2. Cập nhật MEMORY (để hiển thị ngay)
+    sessions.value.unshift(newSession);
+
+    // 3. Cập nhật totalAttendance của CẦU THỦ trong playerStore (MEMORY)
+    sessionData.attendees.forEach((playerId) => {
+      playerStore.incrementAttendance(playerId);
+    });
+
+    // 4. Lưu vào LocalStorage để hiển thị toast
+    saveConfirmedSessionToLocalStorage(newSession);
+  };
+
+  // Xóa session khỏi memory
+  const removeSession = (sessionId) => {
+    const index = sessions.value.findIndex((s) => s.id === sessionId);
+    if (index !== -1) {
+      sessions.value.splice(index, 1);
+    }
+  };
+
+  // Xuất file sessions.csv (NGƯỜI DÙNG PHẢI COPY VÀO PUBLIC/ THỦ CÔNG)
+  const exportSessionsToCSV = () => {
+    if (sessions.value.length === 0) {
+      alert("Không có buổi tập nào để xuất!");
+      return;
+    }
+
+    const dataToExport = sessions.value
+      .map((s) => ({
+        id: s.id,
+        date: s.date,
+        note: s.note,
+        attendeeIds: s.attendees.join(","), // Chuyển array về string CSV
+        createdAt: s.createdAt,
+      }))
+      .reverse(); // Xuất ra file thì sessions cũ nhất lên đầu
+
+    const csv = Papa.unparse(dataToExport, {
+      delimiter: ",",
+      header: true,
+      encoding: "utf-8",
+      bom: true, // Thêm BOM để Excel đọc đúng tiếng Việt
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sessions.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    alert(
+      "Đã xuất file sessions.csv. Vui lòng copy file này vào thư mục public/ để lưu trữ vĩnh viễn dữ liệu điểm danh!"
+    );
+  };
+
+  // Export session báo cáo CSV chi tiết
+  const exportSessionToExcel = (sessionId) => {
+    const session = sessions.value.find((s) => s.id === sessionId);
+    if (!session) return;
+
+    // 1. Chuẩn bị dữ liệu chi tiết người tham gia
+    const attendeesDetail = session.attendees.map((id) => {
+      const player = playerStore.players.find((p) => p.id === id);
+      return player
+        ? playerStore.getPlayerWithBMI(player)
+        : { name: "Unknown", totalAttendance: 0 };
+    });
+
+    // 2. Tạo nội dung CSV báo cáo chi tiết
+    const reportData = attendeesDetail.map((p) => ({
+      ID: p.id,
+      "Tên Cầu Thủ": p.name,
+      "Số áo": p.jerseyNumber || "N/A",
+      "Vị trí": p.position || "N/A",
+      "Chiều cao (cm)": p.height_cm || "N/A",
+      "Cân nặng (kg)": p.weight_kg || "N/A",
+      BMI: p.bmi || "N/A",
+      "Trạng thái BMI": p.bmiStatus || "N/A",
+      "Tổng buổi tập": p.totalAttendance || 0,
+    }));
+
+    // 3. Metadata (Header)
+    const metadata = [
+      ["BÁO CÁO THAM GIA BUỔI TẬP"],
+      [`Ngày: ${session.date}`],
+      [`Ghi chú: ${session.note || "Không có ghi chú"}`],
+      [`Số lượng tham gia: ${session.attendees.length}`],
+      [], // Dòng trống
+    ];
+
+    // 4. Combine metadata và report data
+    // Chuyển mảng reportData thành CSV string, sau đó tách thành mảng các hàng (rows)
+    const dataCsvString = Papa.unparse(reportData, {
+      delimiter: ",",
+      header: true,
+      encoding: "utf-8",
+      bom: true,
+    });
+
+    // Tách CSV thành mảng các hàng, mỗi hàng là một mảng các giá trị
+    const dataRows = dataCsvString.split("\n").map((row) => row.split(","));
+
+    // Kết hợp metadata và data rows
+    const finalData = metadata.concat(dataRows);
+
+    const csvContent = finalData.map((e) => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ThamGia_${session.date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    alert(`Đã xuất file ThamGia_${session.date}.csv!`);
+  };
+
+  // Export báo cáo ảnh
+  const exportToImage = async (elementId, fileName) => {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      alert(`Lỗi: Không tìm thấy nội dung báo cáo!`);
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 3, // High quality screenshot
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+
       const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-
-      link.setAttribute("href", url);
-      link.setAttribute("download", "sessions.csv");
-      link.style.visibility = "hidden";
+      link.download = `${fileName}_${
+        new Date().toISOString().split("T")[0]
+      }.png`;
+      link.href = canvas.toDataURL("image/png");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      console.log("✅ Exported sessions.csv");
-    },
+      alert("Đã xuất ảnh báo cáo thành công!");
+    } catch (err) {
+      console.error("Lỗi xuất ảnh:", err);
+      alert("Lỗi: Không thể xuất ảnh. Vui lòng kiểm tra console (F12).");
+    }
+  };
 
-    // ✅ XUẤT FILE THAM GIA (Per Session)
-    exportSessionAttendees(session) {
-      const playerStore = usePlayerStore();
-
-      const attendedPlayers = playerStore.players.filter((p) =>
-        session.attendees.includes(p.id)
-      );
-
-      const data = attendedPlayers.map((player) => ({
-        Tên: player.name,
-        "Số Áo": player.jerseyNumber || "N/A",
-        "Vị trí": player.position || "N/A",
-        "Số buổi đã tham gia (Mới)": player.totalAttendance || 0,
-        "Ngày tham gia": new Date(session.date).toLocaleDateString("vi-VN"),
-      }));
-
-      const csv = Papa.unparse(data);
-      const blob = new Blob(["\uFEFF" + csv], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const link = document.createElement("a");
-
-      const filename = `ThamGia_${new Date(session.date).toLocaleDateString(
-        "en-CA"
-      )}.csv`;
-      const url = URL.createObjectURL(blob);
-
-      link.setAttribute("href", url);
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      console.log("✅ Exported attendee list:", filename);
-    },
-
-    // ✅ XUẤT EXCEL (Giữ nguyên)
-    exportSessionToExcel(sessionId) {
-      const session = this.sessions.find((s) => s.id === sessionId);
-      if (!session) {
-        alert("Không tìm thấy buổi điểm danh.");
-        return;
-      }
-
-      const playerStore = usePlayerStore();
-
-      const data = [
-        ["BÁO CÁO ĐIỂM DANH CHI TIẾT"],
-        ["Ngày:", new Date(session.date).toLocaleDateString("vi-VN")],
-        ["Ghi Chú:", session.note || "N/A"],
-        [],
-        ["ID", "Tên Cầu Thủ", "Số Áo", "Vị Trí", "Tham Gia?"],
-      ];
-
-      playerStore.players.forEach((player) => {
-        const isAttended = session.attendees.includes(player.id)
-          ? "CÓ"
-          : "VẮNG";
-        data.push([
-          player.id,
-          player.name,
-          player.jerseyNumber || "N/A",
-          player.position || "N/A",
-          isAttended,
-        ]);
-      });
-
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-      const colWidths = [
-        { wch: 5 },
-        { wch: 25 },
-        { wch: 10 },
-        { wch: 15 },
-        { wch: 10 },
-      ];
-      worksheet["!cols"] = colWidths;
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Điểm Danh");
-
-      const filename = `DiemDanh_${new Date(session.date).toLocaleDateString(
-        "en-CA"
-      )}.xlsx`;
-      XLSX.writeFile(workbook, filename);
-
-      console.log("✅ Exported Excel:", filename);
-    },
-
-    // ✅ XUẤT HÌNH ẢNH (Giữ nguyên)
-    async exportToImage(elementId, filename) {
-      const element = document.getElementById(elementId);
-      if (!element) {
-        alert("Không tìm thấy phần tử để xuất hình ảnh.");
-        return;
-      }
-
-      this.loading = true;
-      try {
-        const canvas = await html2canvas(element, {
-          scale: 3,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-        const imageURL = canvas.toDataURL("image/png");
-
-        const a = document.createElement("a");
-        a.href = imageURL;
-        a.download = `${filename || "bao_cao"}_${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        console.log("✅ Exported image:", a.download);
-      } catch (err) {
-        this.error = "Lỗi khi xuất hình ảnh: " + err.message;
-        console.error("❌ Export image error:", err);
-      } finally {
-        this.loading = false;
-      }
-    },
-  },
+  return {
+    sessions,
+    loading,
+    error,
+    lastConfirmedSession,
+    fetchSessions,
+    addSession,
+    removeSession,
+    exportSessionsToCSV,
+    exportSessionToExcel,
+    exportToImage,
+  };
 });

@@ -19,6 +19,9 @@ const isFormValid = computed(() => {
   return sessionForm.value.date && sessionForm.value.attendees.length > 0;
 });
 
+// Hàm tạo độ trễ (delay)
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Methods
 const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -65,19 +68,61 @@ const handleSubmit = async () => {
 };
 
 const confirmDelete = (sessionId) => {
-  if (confirm("Bạn có chắc chắn muốn xóa buổi tập này?")) {
-    const index = attendanceStore.sessions.findIndex((s) => s.id === sessionId);
-    if (index !== -1) {
-      attendanceStore.sessions.splice(index, 1);
-    }
+  if (
+    confirm(
+      "Bạn có chắc chắn muốn xóa buổi tập này khỏi BỘ NHỚ TẠM? Hành động này không xóa khỏi CSV gốc."
+    )
+  ) {
+    attendanceStore.removeSession(sessionId);
   }
 };
 
-const handleExportImage = async () => {
-  await attendanceStore.exportToImage(
-    "attendance-report-area",
-    "lich-su-diem-danh"
+const handleExportPlayers = () => {
+  playerStore.exportPlayersToCSV();
+};
+
+const handleExportSessions = () => {
+  attendanceStore.exportSessionsToCSV();
+};
+
+// Cập nhật logic: Tự động mở details trước khi chụp ảnh, có thêm delay
+const handleExportImage = async (sessionId) => {
+  const elementId = `session-report-${sessionId}`;
+  const sessionToExport = attendanceStore.sessions.find(
+    (s) => s.id === sessionId
   );
+  if (!sessionToExport) return;
+
+  const element = document.getElementById(elementId);
+  if (!element) {
+    alert(`Lỗi: Không tìm thấy nội dung báo cáo!`);
+    return;
+  }
+
+  // 1. Tìm thẻ <details> bên trong session item và mở nó
+  const detailsElement = element.querySelector("details");
+  const wasOpen = detailsElement ? detailsElement.open : false;
+  if (detailsElement) {
+    detailsElement.open = true;
+  }
+
+  try {
+    // 2. THÊM ĐỘ TRỄ NHỎ để trình duyệt kịp render nội dung vừa mở
+    await delay(150); // Chờ 150ms
+
+    // 3. Xuất ảnh
+    await attendanceStore.exportToImage(
+      elementId,
+      `buoi-tap-${sessionToExport.date}`
+    );
+  } catch (e) {
+    console.error(e);
+  } finally {
+    // 4. Đóng lại thẻ <details> (hoặc reset về trạng thái ban đầu)
+    if (detailsElement && !wasOpen) {
+      detailsElement.open = false;
+    }
+  }
 };
 
 // Lifecycle
@@ -89,7 +134,6 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-8">
-    <!-- Hero Header -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 rounded-3xl shadow-2xl p-8"
     >
@@ -113,7 +157,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Success Toast -->
     <transition name="slide-down">
       <div
         v-if="attendanceStore.lastConfirmedSession"
@@ -125,7 +168,10 @@ onMounted(async () => {
 
         <div class="relative p-6">
           <button
-            @click="attendanceStore.lastConfirmedSession = null"
+            @click="
+              attendanceStore.lastConfirmedSession = null;
+              localStorage.removeItem('lastConfirmedSession');
+            "
             class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <svg
@@ -166,7 +212,7 @@ onMounted(async () => {
 
             <div class="flex-1 pt-1">
               <h3 class="text-2xl font-black text-gray-900 mb-2">
-                Thành Công! ✨
+                Đã Điểm Danh! 💾 Chỉ lưu vào bộ nhớ!
               </h3>
               <p class="text-gray-700 mb-1">
                 Ngày:
@@ -175,45 +221,21 @@ onMounted(async () => {
                 }}</strong>
               </p>
               <p class="text-sm text-gray-600 mb-4">
-                🎉 Đã xuất <strong class="text-green-600">2 file CSV</strong> và
-                cập nhật database
+                🎉 Đã cập nhật
+                <strong class="text-green-600">tổng tham gia</strong> của cầu
+                thủ trong bộ nhớ tạm (memory).
               </p>
 
               <div
-                class="bg-white rounded-xl p-4 shadow-inner border border-gray-100"
+                class="bg-yellow-50 rounded-xl p-3 shadow-inner border border-yellow-200"
               >
-                <p
-                  class="text-sm font-bold text-gray-800 mb-2 flex items-center"
-                >
-                  <svg
-                    class="w-4 h-4 mr-2 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                  {{ attendanceStore.lastConfirmedSession.attendees.length }}
-                  Cầu Thủ Tham Gia
+                <p class="text-sm font-bold text-yellow-800 flex items-center">
+                  <span class="text-xl mr-2">⚠️</span>
+                  QUAN TRỌNG: Dữ liệu này **CHƯA** được lưu vĩnh viễn vào CSV.
+                  Vui lòng bấm
+                  <strong class="mx-1 text-red-600">"Xuất CSV Lịch Sử"</strong>
+                  sau đó copy vào `public/` để lưu!
                 </p>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="(name, idx) in getAttendeeNames(
-                      attendanceStore.lastConfirmedSession.attendees
-                    )"
-                    :key="name"
-                    class="inline-flex items-center px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-sm font-medium rounded-full border border-green-200 animate-fade-in"
-                    :style="{ animationDelay: `${idx * 50}ms` }"
-                  >
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    {{ name }}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -221,7 +243,6 @@ onMounted(async () => {
       </div>
     </transition>
 
-    <!-- Create Session Form -->
     <div
       class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
     >
@@ -246,7 +267,6 @@ onMounted(async () => {
       </div>
 
       <form @submit.prevent="handleSubmit" class="p-6">
-        <!-- Date & Note -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div class="group">
             <label
@@ -307,7 +327,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Player Selection -->
         <div class="mb-8">
           <div
             class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 pb-4 border-b-2 border-gray-100"
@@ -382,7 +401,6 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- Players Grid -->
           <div
             v-if="playerStore.players.length > 0"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300"
@@ -446,7 +464,6 @@ onMounted(async () => {
             </label>
           </div>
 
-          <!-- Empty State -->
           <div
             v-else
             class="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300"
@@ -481,7 +498,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Submit Button -->
         <button
           type="submit"
           :disabled="!isFormValid || attendanceStore.loading"
@@ -517,7 +533,6 @@ onMounted(async () => {
       </form>
     </div>
 
-    <!-- Session History -->
     <div
       class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
     >
@@ -544,16 +559,20 @@ onMounted(async () => {
             </h2>
             <p class="text-purple-100 mt-1">
               Tổng cộng
-              <strong>{{ attendanceStore.sessions.length }}</strong> buổi tập
+              <strong>{{ attendanceStore.sessions.length }}</strong> buổi tập.
+              **LƯU Ý: Đây là data trong bộ nhớ tạm**
             </p>
           </div>
 
           <div class="flex space-x-2 mt-3 sm:mt-0">
             <button
-              v-if="attendanceStore.sessions.length > 0"
-              @click="handleExportImage"
-              :disabled="attendanceStore.loading"
-              class="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-semibold rounded-xl transition-all duration-300 flex items-center border border-white/30"
+              @click="handleExportPlayers"
+              :disabled="playerStore.players.length === 0"
+              class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl transition-all duration-300 flex items-center border border-yellow-300 shadow-lg"
+              :class="{
+                'opacity-50 cursor-not-allowed':
+                  playerStore.players.length === 0,
+              }"
             >
               <svg
                 class="w-4 h-4 mr-2"
@@ -565,21 +584,46 @@ onMounted(async () => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 8l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              Xuất Ảnh
+              Xuất CSV Cầu Thủ
+            </button>
+
+            <button
+              @click="handleExportSessions"
+              :disabled="attendanceStore.sessions.length === 0"
+              class="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-semibold rounded-xl transition-all duration-300 flex items-center border border-white/30 shadow-lg"
+              :class="{
+                'opacity-50 cursor-not-allowed':
+                  attendanceStore.sessions.length === 0,
+              }"
+            >
+              <svg
+                class="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 8l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Xuất CSV Lịch Sử
             </button>
           </div>
         </div>
       </div>
 
-      <div id="attendance-report-area" class="p-6">
-        <!-- Sessions List -->
+      <div class="p-6">
         <div v-if="attendanceStore.sessions.length > 0" class="space-y-4">
           <div
             v-for="(session, index) in attendanceStore.sessions"
             :key="session.id"
+            :id="`session-report-${session.id}`"
             class="group relative bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-gray-100 hover:border-indigo-200 hover:shadow-xl transition-all duration-300 overflow-hidden"
             :style="{ animationDelay: `${index * 50}ms` }"
           >
@@ -671,7 +715,7 @@ onMounted(async () => {
                       </svg>
                       Xem danh sách
                     </summary>
-                    <div class="mt-3 flex flex-wrap gap-2">
+                    <div class="mt-3 flex flex-wrap gap-2 forced-render-list">
                       <span
                         v-for="name in getAttendeeNames(session.attendees)"
                         :key="name"
@@ -688,9 +732,30 @@ onMounted(async () => {
 
                 <div class="flex flex-wrap gap-2">
                   <button
+                    @click="handleExportImage(session.id)"
+                    class="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
+                    title="Xuất ảnh báo cáo"
+                  >
+                    <svg
+                      class="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      ></path>
+                    </svg>
+                    Xuất Ảnh
+                  </button>
+
+                  <button
                     @click="attendanceStore.exportSessionToExcel(session.id)"
                     class="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
-                    title="Xuất Excel"
+                    title="Xuất CSV báo cáo chi tiết"
                   >
                     <svg
                       class="w-4 h-4 mr-1"
@@ -703,15 +768,15 @@ onMounted(async () => {
                         stroke-linejoin="round"
                         stroke-width="2"
                         d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
+                      ></path>
                     </svg>
-                    Excel
+                    CSV Report
                   </button>
 
                   <button
                     @click="confirmDelete(session.id)"
                     class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg"
-                    title="Xóa"
+                    title="Xóa khỏi bộ nhớ tạm"
                   >
                     <svg
                       class="w-4 h-4"
@@ -724,7 +789,7 @@ onMounted(async () => {
                         stroke-linejoin="round"
                         stroke-width="2"
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
+                      ></path>
                     </svg>
                   </button>
                 </div>
@@ -733,7 +798,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Empty State -->
         <div v-else class="text-center py-20">
           <div
             class="inline-block p-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl mb-6"
@@ -853,5 +917,12 @@ onMounted(async () => {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* THÊM CSS NÀY để buộc render đúng, tránh lỗi font và layout */
+.forced-render-list {
+  transform: translateZ(0);
+  /* Webkit hack to fix blurry text/missing elements issue in html2canvas */
+  -webkit-font-smoothing: antialiased;
 }
 </style>

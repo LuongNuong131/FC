@@ -3,12 +3,14 @@ import { computed, onMounted } from "vue";
 import { usePlayerStore } from "@/stores/playerStore";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
+import { useAuthStore } from "@/stores/authStore";
 
 const props = defineProps({
   id: String,
 });
 
 const playerStore = usePlayerStore();
+const authStore = useAuthStore();
 const router = useRouter();
 
 const { player } = storeToRefs(playerStore);
@@ -43,13 +45,12 @@ const formatDate = (date) => {
 };
 
 const goBack = () => {
-  router.back();
+  router.push("/players");
 };
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Back Button -->
     <button
       @click="goBack"
       class="flex items-center space-x-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all"
@@ -67,10 +68,9 @@ const goBack = () => {
           d="M10 19l-7-7m0 0l7-7m-7 7h18"
         />
       </svg>
-      <span>Quay lại</span>
+      <span>Quay lại danh sách</span>
     </button>
 
-    <!-- Loading State -->
     <div
       v-if="playerStore.loading"
       class="flex items-center justify-center py-20"
@@ -83,7 +83,6 @@ const goBack = () => {
       </div>
     </div>
 
-    <!-- Error State -->
     <div
       v-else-if="playerStore.error"
       class="bg-red-50 border-l-4 border-red-500 rounded-xl p-6"
@@ -109,12 +108,10 @@ const goBack = () => {
       </div>
     </div>
 
-    <!-- Player Detail Card -->
     <div
       v-else-if="player && playerWithBMI"
       class="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden"
     >
-      <!-- Header with Gradient -->
       <div
         class="relative h-48 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden"
       >
@@ -161,10 +158,8 @@ const goBack = () => {
         </div>
       </div>
 
-      <!-- Content -->
       <div class="p-8 pt-20">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Basic Info -->
           <div class="space-y-4">
             <h3 class="text-xl font-black text-gray-900 mb-4 flex items-center">
               <svg
@@ -222,7 +217,6 @@ const goBack = () => {
             </div>
           </div>
 
-          <!-- Stats -->
           <div class="space-y-4">
             <h3 class="text-xl font-black text-gray-900 mb-4 flex items-center">
               <svg
@@ -241,7 +235,6 @@ const goBack = () => {
               Thống Kê
             </h3>
 
-            <!-- Attendance -->
             <div
               class="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200"
             >
@@ -269,7 +262,6 @@ const goBack = () => {
               <p class="text-xs text-gray-600">buổi tập</p>
             </div>
 
-            <!-- BMI Card -->
             <div
               v-if="playerWithBMI.bmi"
               class="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-200"
@@ -308,15 +300,35 @@ const goBack = () => {
               class="p-6 bg-gray-50 rounded-2xl border-2 border-gray-200"
             >
               <p class="text-sm text-gray-400 text-center">
-                Chưa đủ thông tin để tính BMI
+                Chưa đủ thông tin để tính BMI (Cần có Chiều cao & Cân nặng)
               </p>
             </div>
           </div>
         </div>
 
-        <!-- ✅ REMOVED Edit Button - View Only Mode -->
         <div class="mt-8 pt-6 border-t border-gray-200 flex justify-center">
+          <router-link
+            v-if="authStore.isAdmin"
+            :to="`/players/${player.id}/edit`"
+            class="px-8 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 flex items-center space-x-2 shadow-lg"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              ></path>
+            </svg>
+            <span>Sửa thông tin cầu thủ</span>
+          </router-link>
           <button
+            v-else
             @click="goBack"
             class="px-8 py-3 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-700 font-bold rounded-xl transition-all transform hover:scale-105 flex items-center space-x-2"
           >

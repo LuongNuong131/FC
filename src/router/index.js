@@ -6,6 +6,7 @@ import Dashboard from "../views/Dashboard.vue";
 import PlayersList from "../views/PlayersList.vue";
 import PlayerDetail from "../views/PlayerDetail.vue";
 import Attendance from "../views/Attendance.vue";
+import PlayerForm from "@/components/PlayerForm.vue"; // ĐÃ SỬA: Sử dụng alias @
 
 const routes = [
   {
@@ -32,6 +33,22 @@ const routes = [
     component: PlayerDetail,
     props: true,
     meta: { requiresAuth: true },
+  },
+  // Route cho việc thêm cầu thủ
+  {
+    path: "/players/new",
+    name: "PlayerNew",
+    component: PlayerForm,
+    props: { isEditing: false },
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  // Route cho việc sửa cầu thủ
+  {
+    path: "/players/:id/edit",
+    name: "PlayerEdit",
+    component: PlayerForm,
+    props: (route) => ({ id: route.params.id, isEditing: true }),
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/attendance",

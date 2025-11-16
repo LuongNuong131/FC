@@ -17,14 +17,12 @@ const advancedStats = computed(() => {
   const totalPlayers = players.length;
   const totalSessions = sessions.length;
 
-  // ✅ FIX: Tổng lượt tham gia = tổng số người trong TẤT CẢ sessions
+  // Tổng lượt tham gia = tổng số người trong TẤT CẢ sessions
   const totalAttendances = sessions.reduce((sum, session) => {
     return sum + (session.attendees?.length || 0);
   }, 0);
 
-  // ✅ FIX: TB tham gia/người = Tổng buổi tập / Số cầu thủ
-  // (Nếu có 3 buổi và 10 người, TB = 3/10 = 0.3 buổi/người là SAI)
-  // ĐÚNG: TB = Trung bình mỗi người đi bao nhiêu buổi
+  // TB tham gia/người = Trung bình mỗi người đi bao nhiêu buổi
   const avgAttendance =
     totalPlayers > 0
       ? (
@@ -57,7 +55,7 @@ const advancedStats = computed(() => {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
-  // ✨ NEW: Best month (month with most sessions)
+  // Best month (month with most sessions)
   const monthStats = sessions.reduce((acc, s) => {
     const month = new Date(s.date).toLocaleDateString("vi-VN", {
       month: "long",
@@ -99,15 +97,25 @@ const formatDate = (date) => {
   });
 };
 
-// Get position color
+// Get position color (Cho biểu đồ phân bố)
 const getPositionColor = (position) => {
   const colors = {
     Forward: "red",
     Midfielder: "blue",
     Defender: "green",
     Goalkeeper: "yellow",
+    Unknown: "gray",
   };
   return colors[position] || "gray";
+};
+
+// Actions
+const handleExportPlayers = () => {
+  playerStore.exportPlayersToCSV();
+};
+
+const handleExportSessions = () => {
+  attendanceStore.exportSessionsToCSV();
 };
 
 onMounted(() => {
@@ -118,7 +126,6 @@ onMounted(() => {
 
 <template>
   <div class="space-y-8">
-    <!-- Hero Section with Gradient -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl p-8"
     >
@@ -163,7 +170,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
     <div
       v-if="playerStore.loading || attendanceStore.loading"
       class="flex items-center justify-center py-20"
@@ -176,9 +182,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Main Stats Grid -->
     <div v-else class="space-y-8">
-      <!-- Key Metrics Row 1 -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <CardStat
           title="Tổng Số Cầu Thủ"
@@ -210,7 +214,6 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Key Metrics Row 2 (NEW) -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <CardStat
           title="Tổng Lượt Tham Gia"
@@ -243,9 +246,7 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Charts and Lists Section -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Performers -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
@@ -267,7 +268,6 @@ onMounted(() => {
                 :key="player.id"
                 class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-green-50 transition-all duration-300 group"
               >
-                <!-- Rank Badge -->
                 <div class="relative">
                   <div
                     :class="[
@@ -290,7 +290,6 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <!-- Player Info -->
                 <div class="flex-1 min-w-0">
                   <h3 class="text-lg font-bold text-gray-900 truncate">
                     {{ player.name }}
@@ -299,7 +298,7 @@ onMounted(() => {
                     <span
                       class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full"
                     >
-                      #{{ player.jerseyNumber }}
+                      #{{ player.jerseyNumber || "?" }}
                     </span>
                     <span class="text-sm text-gray-500">{{
                       player.position
@@ -307,7 +306,6 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <!-- Attendance Count -->
                 <div class="text-right">
                   <div class="text-3xl font-black text-green-600">
                     {{ player.totalAttendance || 0 }}
@@ -326,7 +324,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Position Distribution -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
@@ -369,7 +366,6 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <!-- Progress Bar -->
                 <div
                   class="w-full h-3 bg-gray-200 rounded-full overflow-hidden"
                 >
@@ -395,7 +391,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Recent Activity -->
       <div
         class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
       >
@@ -417,7 +412,6 @@ onMounted(() => {
               class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-purple-50 transition-all duration-300 border-l-4 border-purple-500"
               :style="{ animationDelay: `${index * 100}ms` }"
             >
-              <!-- Date Badge -->
               <div class="flex-shrink-0">
                 <div
                   class="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-600 rounded-xl flex flex-col items-center justify-center text-white shadow-lg"
@@ -431,7 +425,6 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Session Info -->
               <div class="flex-1 min-w-0">
                 <h3 class="text-lg font-bold text-gray-900 mb-1">
                   {{ session.note || "Buổi tập thường" }}
@@ -472,7 +465,6 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- View Details Button (Only for Admin) -->
               <router-link
                 v-if="authStore.isAdmin"
                 to="/attendance"
@@ -496,53 +488,13 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-else class="text-center py-16">
-            <div
-              class="inline-block p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl mb-4"
-            >
-              <svg
-                class="w-16 h-16 text-gray-300 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <p class="text-xl font-semibold text-gray-600 mb-2">
-              Chưa có buổi tập nào
-            </p>
-            <p class="text-gray-500 mb-4">Hãy tạo buổi điểm danh đầu tiên</p>
-            <router-link
-              v-if="authStore.isAdmin"
-              to="/attendance"
-              class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
-            >
-              <svg
-                class="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Tạo Buổi Tập
-            </router-link>
+          <div v-else class="text-center py-10 text-gray-400">
+            <p class="text-4xl mb-2">🏃</p>
+            <p>Chưa có dữ liệu tham gia</p>
           </div>
         </div>
       </div>
 
-      <!-- Quick Actions -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <router-link
           to="/players"
@@ -576,6 +528,24 @@ onMounted(() => {
         </router-link>
 
         <div
+          v-if="authStore.isAdmin"
+          @click="playerStore.exportPlayersToCSV"
+          class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+          title="Xuất players.csv và sessions.csv"
+        >
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
+          ></div>
+          <div class="relative z-10">
+            <div class="text-5xl mb-3">💾</div>
+            <h3 class="text-2xl font-black mb-2">Lưu Data (CSV)</h3>
+            <p class="text-purple-100">
+              Xuất players.csv để lưu trữ cầu thủ và attendance
+            </p>
+          </div>
+        </div>
+        <div
+          v-else
           class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
         >
           <div

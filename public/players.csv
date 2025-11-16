@@ -1,4 +1,18 @@
 id,name,phone,dob,height_cm,weight_kg,position,jerseyNumber,imageUrl,totalAttendance
 p1,Trần Quang Lương,0907987126,2005-01-13,177,85,Forward,22,/images/players/LuNu.jpg,2
 p2,Trịnh Hoàng Bảo Huy,0375244203,2004-03-07,170,70,Forward,29,/images/players/HuyNho.jpg,1
-p3,Lê Văn C,0901xxx333,2000-01-01,168,62,Defender,5,https://placehold.co/150x150?text=C,0
+p3,Nguyễn Bình Phương,0397183437,2004-12-25,175,60,Defender,79,/images/players/Ca.jpg,0
+p4,Từ Thanh Dương,0987659210,2005-02-22,163,74,Defender,02,/images/players/Duong.jpg,0
+p5,Nguyễn Văn Sơn,0393703247,2001-10-30,167,49,Defender,08,/images/players/Son.jpg,0
+p6,Lê Hoàng Lịnh,0397215515,2005-10-11,178,51,Defender,11,/images/players/Linh.jpg,0
+p6,Nguyễn Bá Quốc,0336582477,2004-02-20,174,52,Defender,99,/images/players/Quoc.jpg,0
+p7,Nguyễn Hoàng Gia Khang,0876408516,2005-05-23,175,65,Defender,98,/images/players/G.Khang.jpg,0
+p8,Lê Văn Quang,0333832483,2005-04-13,167,60,Defender,13,/images/players/Quang.jpg,0
+p9,Lê Hải Đăng,0353576449,2005-02-01,172,55,Defender,12,/images/players/Dang.jpg,0
+p10,Cao Nhật Thịnh,0878403232,2006-05-03,177,74,Defender,10,/images/players/Thinh.jpg,0
+p11,Lê Nhật Nam,0333362841,2005-05-09,175,62,Defender,9,/images/players/Nam.jpg,0
+p12,Đinh Hữu Đạt,0948765060,2004-01-14,167,57,Defender,77,/images/players/DatLon.jpg,0
+p13,Nguyễn Văn Công,0978946521,2005-03-03,173,57,Defender,97,/images/players/Cong.jpg,0
+p14,Huỳnh Trương Khang,0704405501,2005-11-01,167,52,Defender,96,/images/players/T.Khang.jpg,0
+p15,Hồ Minh Quân,0776358295,2005-10-01,167,55,Defender,10,/images/players/Coca.jpg,0
+p16,Thái Văn Tứ,0393152441,2005-04-15,178,62,Defender,18,/images/players/Tu.jpg,0

@@ -1,9 +1,11 @@
 <script setup>
 import { onMounted, ref, computed } from "vue";
 import { usePlayerStore } from "@/stores/playerStore";
+import { useAuthStore } from "@/stores/authStore";
 import PlayerCard from "@/components/PlayerCard.vue";
 
 const playerStore = usePlayerStore();
+const authStore = useAuthStore();
 
 // Search and Filter States
 const searchQuery = ref("");
@@ -95,6 +97,11 @@ const clearFilters = () => {
   sortOrder.value = "asc";
 };
 
+// Action
+const handleExportPlayers = () => {
+  playerStore.exportPlayersToCSV();
+};
+
 onMounted(() => {
   playerStore.fetchPlayers();
 });
@@ -102,7 +109,6 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Header Section -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl shadow-2xl p-8"
     >
@@ -128,11 +134,35 @@ onMounted(() => {
             Quản lý {{ stats.total }} cầu thủ trong đội
           </p>
         </div>
-        <div class="mt-4 sm:mt-0">
+
+        <div class="mt-4 sm:mt-0 flex space-x-3">
           <button
-            disabled
-            class="relative px-6 py-3 bg-white/20 backdrop-blur-md border-2 border-white/30 text-white font-bold rounded-xl cursor-not-allowed opacity-60 flex items-center space-x-2"
-            title="Vui lòng thêm cầu thủ vào file CSV"
+            v-if="authStore.isAdmin"
+            @click="handleExportPlayers"
+            :disabled="playerStore.players.length === 0"
+            class="relative px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-white font-bold rounded-xl shadow-lg transition-all duration-300 flex items-center space-x-2 disabled:opacity-50"
+            title="Xuất file players.csv để lưu trữ"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 8l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            <span>Xuất CSV</span>
+          </button>
+          <router-link
+            v-if="authStore.isAdmin"
+            to="/players/new"
+            class="relative px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md border-2 border-white/30 text-white font-bold rounded-xl flex items-center space-x-2"
+            title="Thêm cầu thủ bằng Form"
           >
             <svg
               class="w-5 h-5"
@@ -147,13 +177,12 @@ onMounted(() => {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            <span>Thêm Cầu Thủ (CSV)</span>
-          </button>
+            <span>Thêm Cầu Thủ</span>
+          </router-link>
         </div>
       </div>
     </div>
 
-    <!-- Loading State -->
     <div
       v-if="playerStore.loading"
       class="flex items-center justify-center py-20"
@@ -168,7 +197,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Error State -->
     <div
       v-else-if="playerStore.error"
       class="bg-red-50 border-l-4 border-red-500 rounded-xl p-6"
@@ -196,12 +224,9 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Main Content -->
     <div v-else class="space-y-6">
-      <!-- Filters and Search -->
       <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <!-- Search -->
           <div class="md:col-span-4 relative">
             <label class="block text-sm font-bold text-gray-700 mb-2"
               >🔍 Tìm kiếm</label
@@ -229,7 +254,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Position Filter -->
           <div class="md:col-span-3">
             <label class="block text-sm font-bold text-gray-700 mb-2"
               >⚽ Vị trí</label
@@ -248,7 +272,6 @@ onMounted(() => {
             </select>
           </div>
 
-          <!-- Sort By -->
           <div class="md:col-span-2">
             <label class="block text-sm font-bold text-gray-700 mb-2"
               >📊 Sắp xếp</label
@@ -267,7 +290,6 @@ onMounted(() => {
             </select>
           </div>
 
-          <!-- Actions -->
           <div class="md:col-span-3 flex items-end space-x-2">
             <button
               @click="toggleSortOrder"
@@ -355,7 +377,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Filter Summary -->
         <div
           v-if="searchQuery || positionFilter !== 'all'"
           class="mt-4 pt-4 border-t border-gray-200"
@@ -415,7 +436,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Results Summary -->
       <div class="flex items-center justify-between px-4">
         <p class="text-lg font-bold text-gray-700">
           Hiển thị <span class="text-indigo-600">{{ stats.filtered }}</span> /
@@ -429,7 +449,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Empty State -->
       <div
         v-if="stats.total === 0"
         class="bg-white rounded-2xl shadow-xl border border-gray-100 p-16 text-center"
@@ -459,7 +478,7 @@ onMounted(() => {
           <code class="px-2 py-1 bg-gray-200 rounded text-sm"
             >public/players.csv</code
           >
-          để bắt đầu quản lý đội bóng
+          hoặc sử dụng nút "Thêm Cầu Thủ" bên trên
         </p>
         <a
           href="/players.csv"
@@ -483,7 +502,6 @@ onMounted(() => {
         </a>
       </div>
 
-      <!-- No Results -->
       <div
         v-else-if="filteredPlayers.length === 0"
         class="bg-white rounded-2xl shadow-xl border border-gray-100 p-16 text-center"
@@ -532,7 +550,6 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Players Grid View -->
       <div
         v-else-if="viewMode === 'grid'"
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
@@ -544,14 +561,12 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Players List View -->
       <div v-else class="space-y-4">
         <div
           v-for="player in filteredPlayers"
           :key="player.id"
-          class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 p-6 flex items-center space-x-6 group hover:scale-102"
+          class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 p-6 flex items-center space-x-6 group hover:scale-[1.01]"
         >
-          <!-- Avatar -->
           <div class="flex-shrink-0">
             <div class="relative">
               <img
@@ -575,11 +590,9 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Info -->
           <div
             class="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4 items-center"
           >
-            <!-- Name & Position -->
             <div class="md:col-span-2">
               <h3 class="text-xl font-black text-gray-900 mb-1">
                 {{ player.name }}
@@ -596,7 +609,6 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Stats -->
             <div class="text-center">
               <div class="text-2xl font-black text-green-600">
                 {{ player.totalAttendance || 0 }}
@@ -604,7 +616,6 @@ onMounted(() => {
               <div class="text-xs text-gray-500 font-semibold">Buổi tập</div>
             </div>
 
-            <!-- BMI -->
             <div class="text-center">
               <div class="text-lg font-black text-purple-600">
                 {{ playerStore.getPlayerWithBMI(player).bmi || "N/A" }}
@@ -612,7 +623,6 @@ onMounted(() => {
               <div class="text-xs text-gray-500 font-semibold">BMI</div>
             </div>
 
-            <!-- Actions -->
             <div class="flex items-center justify-end space-x-2">
               <router-link
                 :to="`/players/${player.id}`"
@@ -639,6 +649,25 @@ onMounted(() => {
                 </svg>
                 <span class="hidden sm:inline">Chi tiết</span>
               </router-link>
+              <router-link
+                v-if="authStore.isAdmin"
+                :to="`/players/${player.id}/edit`"
+                class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg hover:shadow-lg transition-all flex items-center"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  ></path>
+                </svg>
+              </router-link>
             </div>
           </div>
         </div>
@@ -659,7 +688,7 @@ onMounted(() => {
   }
 }
 
-.hover\:scale-102:hover {
-  transform: scale(1.02);
+.hover\:scale-\[1\.01\]:hover {
+  transform: scale(1.01);
 }
 </style>
