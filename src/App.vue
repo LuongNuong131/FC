@@ -34,6 +34,8 @@ const navItems = computed(() => {
   const items = [
     { path: "/", label: "Dashboard", icon: "📊" },
     { path: "/players", label: "Cầu Thủ", icon: "👥" },
+    { path: "/teams", label: "Chia Đội", icon: "🆚" }, // NEW
+    { path: "/fund", label: "Quỹ Nhóm", icon: "💰" }, // NEW
   ];
 
   // Add Attendance for admin only
@@ -267,6 +269,22 @@ onMounted(() => {
                       </div>
                       <div class="flex items-center px-2 py-1">
                         <svg
+                          class="w-4 h-4 text-green-500 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        <span class="text-gray-600">Quỹ Nhóm/Chia Đội</span>
+                      </div>
+                      <div class="flex items-center px-2 py-1">
+                        <svg
                           :class="[
                             'w-4 h-4 mr-2',
                             authStore.isAdmin
@@ -299,7 +317,7 @@ onMounted(() => {
                               : 'text-gray-400'
                           "
                         >
-                          Điểm danh
+                          Điểm danh/Thêm cầu thủ
                         </span>
                       </div>
                     </div>
@@ -501,6 +519,22 @@ onMounted(() => {
                   class="text-gray-400 hover:text-green-400 transition-colors flex items-center"
                 >
                   <span class="mr-2">→</span> Danh Sách Cầu Thủ
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/teams"
+                  class="text-gray-400 hover:text-green-400 transition-colors flex items-center"
+                >
+                  <span class="mr-2">→</span> Chia Đội
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/fund"
+                  class="text-gray-400 hover:text-green-400 transition-colors flex items-center"
+                >
+                  <span class="mr-2">→</span> Quỹ Nhóm
                 </router-link>
               </li>
               <li v-if="authStore.isAdmin">

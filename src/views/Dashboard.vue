@@ -1,13 +1,18 @@
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { usePlayerStore } from "@/stores/playerStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useAuthStore } from "@/stores/authStore";
 import CardStat from "@/components/CardStat.vue";
+import AttendanceDetailModal from "@/components/AttendanceDetailModal.vue";
 
 const playerStore = usePlayerStore();
 const attendanceStore = useAttendanceStore();
 const authStore = useAuthStore();
+
+// State cho Modal
+const showAttendanceModal = ref(false);
+const selectedSession = ref(null);
 
 // Computed Statistics
 const advancedStats = computed(() => {
@@ -82,12 +87,6 @@ const advancedStats = computed(() => {
   };
 });
 
-// Get player name by ID
-const getPlayerName = (id) => {
-  const player = playerStore.players.find((p) => p.id === id);
-  return player ? player.name : "Unknown";
-};
-
 // Format date
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString("vi-VN", {
@@ -109,13 +108,10 @@ const getPositionColor = (position) => {
   return colors[position] || "gray";
 };
 
-// Actions
-const handleExportPlayers = () => {
-  playerStore.exportPlayersToCSV();
-};
-
-const handleExportSessions = () => {
-  attendanceStore.exportSessionsToCSV();
+// Event handler cho Khách xem chi tiết
+const handleViewSessionDetail = (session) => {
+  selectedSession.value = session;
+  showAttendanceModal.value = true;
 };
 
 onMounted(() => {
@@ -126,6 +122,7 @@ onMounted(() => {
 
 <template>
   <div class="space-y-8">
+    <!-- Header -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl p-8"
     >
@@ -170,6 +167,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Loading State -->
     <div
       v-if="playerStore.loading || attendanceStore.loading"
       class="flex items-center justify-center py-20"
@@ -183,6 +181,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="space-y-8">
+      <!-- Main Stats -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <CardStat
           title="Tổng Số Cầu Thủ"
@@ -214,6 +213,7 @@ onMounted(() => {
         />
       </div>
 
+      <!-- Secondary Stats -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <CardStat
           title="Tổng Lượt Tham Gia"
@@ -246,7 +246,9 @@ onMounted(() => {
         />
       </div>
 
+      <!-- Top Performers & Position Distribution -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top Performers -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
@@ -266,7 +268,7 @@ onMounted(() => {
               <div
                 v-for="(player, index) in advancedStats.topPerformers"
                 :key="player.id"
-                class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-green-50 transition-all duration-300 group"
+                class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-green-50 transition-all duration-300 group cursor-pointer"
               >
                 <div class="relative">
                   <div
@@ -324,6 +326,7 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- Position Distribution -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
@@ -391,6 +394,7 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Recent Activity -->
       <div
         class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
       >
@@ -409,8 +413,9 @@ onMounted(() => {
             <div
               v-for="(session, index) in advancedStats.recentSessions"
               :key="session.id"
-              class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-purple-50 transition-all duration-300 border-l-4 border-purple-500"
+              class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-purple-50 transition-all duration-300 border-l-4 border-purple-500 cursor-pointer"
               :style="{ animationDelay: `${index * 100}ms` }"
+              @click="handleViewSessionDetail(session)"
             >
               <div class="flex-shrink-0">
                 <div
@@ -465,12 +470,10 @@ onMounted(() => {
                 </div>
               </div>
 
-              <router-link
-                v-if="authStore.isAdmin"
-                to="/attendance"
+              <div
                 class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
               >
-                <span class="mr-1">Chi tiết</span>
+                <span class="mr-1">Xem chi tiết</span>
                 <svg
                   class="w-4 h-4"
                   fill="none"
@@ -484,7 +487,7 @@ onMounted(() => {
                     d="M9 5l7 7-7 7"
                   />
                 </svg>
-              </router-link>
+              </div>
             </div>
           </div>
 
@@ -495,7 +498,8 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Quick Actions -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <router-link
           to="/players"
           class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
@@ -509,6 +513,34 @@ onMounted(() => {
             <p class="text-blue-100">
               Xem danh sách {{ advancedStats.totalPlayers }} cầu thủ
             </p>
+          </div>
+        </router-link>
+
+        <router-link
+          to="/teams"
+          class="group relative overflow-hidden bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+        >
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
+          ></div>
+          <div class="relative z-10">
+            <div class="text-5xl mb-3">🆚</div>
+            <h3 class="text-2xl font-black mb-2">Chia Đội</h3>
+            <p class="text-cyan-100">Cấu hình 4 đội bóng cố định</p>
+          </div>
+        </router-link>
+
+        <router-link
+          to="/fund"
+          class="group relative overflow-hidden bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+        >
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
+          ></div>
+          <div class="relative z-10">
+            <div class="text-5xl mb-3">💰</div>
+            <h3 class="text-2xl font-black mb-2">Quỹ Nhóm</h3>
+            <p class="text-yellow-100">Xem lịch sử đóng góp và tổng quỹ</p>
           </div>
         </router-link>
 
@@ -528,39 +560,27 @@ onMounted(() => {
         </router-link>
 
         <div
-          v-if="authStore.isAdmin"
-          @click="playerStore.exportPlayersToCSV"
-          class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
-          title="Xuất players.csv và sessions.csv"
-        >
-          <div
-            class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
-          ></div>
-          <div class="relative z-10">
-            <div class="text-5xl mb-3">💾</div>
-            <h3 class="text-2xl font-black mb-2">Lưu Data (CSV)</h3>
-            <p class="text-purple-100">
-              Xuất players.csv để lưu trữ cầu thủ và attendance
-            </p>
-          </div>
-        </div>
-        <div
           v-else
-          class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+          class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
           ></div>
           <div class="relative z-10">
-            <div class="text-5xl mb-3">📊</div>
-            <h3 class="text-2xl font-black mb-2">Thống Kê</h3>
-            <p class="text-purple-100">
-              {{ advancedStats.totalAttendances }} lượt check-in
-            </p>
+            <div class="text-5xl mb-3">👀</div>
+            <h3 class="text-2xl font-black mb-2">Chế Độ Khách</h3>
+            <p class="text-purple-100">Xem thông tin, không chỉnh sửa</p>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Modal for Guest/User to view attendance detail -->
+    <AttendanceDetailModal
+      :show="showAttendanceModal"
+      :session="selectedSession"
+      @close="showAttendanceModal = false"
+    />
   </div>
 </template>
 

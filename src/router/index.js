@@ -6,7 +6,9 @@ import Dashboard from "../views/Dashboard.vue";
 import PlayersList from "../views/PlayersList.vue";
 import PlayerDetail from "../views/PlayerDetail.vue";
 import Attendance from "../views/Attendance.vue";
-import PlayerForm from "@/components/PlayerForm.vue"; // ĐÃ SỬA: Sử dụng alias @
+import PlayerForm from "@/components/PlayerForm.vue";
+import FundManagement from "@/views/FundManagement.vue";
+import TeamSplitting from "@/views/TeamSplitting.vue";
 
 const routes = [
   {
@@ -34,7 +36,6 @@ const routes = [
     props: true,
     meta: { requiresAuth: true },
   },
-  // Route cho việc thêm cầu thủ
   {
     path: "/players/new",
     name: "PlayerNew",
@@ -42,7 +43,6 @@ const routes = [
     props: { isEditing: false },
     meta: { requiresAuth: true, requiresAdmin: true },
   },
-  // Route cho việc sửa cầu thủ
   {
     path: "/players/:id/edit",
     name: "PlayerEdit",
@@ -54,7 +54,19 @@ const routes = [
     path: "/attendance",
     name: "Attendance",
     component: Attendance,
-    meta: { requiresAuth: true, requiresAdmin: true }, // Only admin can access
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/fund",
+    name: "FundManagement",
+    component: FundManagement,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/teams",
+    name: "TeamSplitting",
+    component: TeamSplitting,
+    meta: { requiresAuth: true },
   },
 ];
 
@@ -63,35 +75,23 @@ const router = createRouter({
   routes,
 });
 
-// Navigation Guards
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
 
-  // Check if user is authenticated from localStorage
   if (!authStore.isAuthenticated) {
     authStore.checkAuth();
   }
 
-  // If route requires auth
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
-      // Not logged in, redirect to login
       next("/login");
     } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-      // Requires admin but user is guest, redirect to dashboard
       next("/");
     } else {
-      // Authenticated and authorized
       next();
     }
   } else {
-    // Route doesn't require auth
-    if (to.path === "/login" && authStore.isAuthenticated) {
-      // Already logged in, redirect to dashboard
-      next("/");
-    } else {
-      next();
-    }
+    next();
   }
 });
 

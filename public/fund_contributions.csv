@@ -1,0 +1,5 @@
+id,date,contributor,amount,note,imageUrl,createdAt
+f1,2025-11-01,Trần Quang Lương,500000,Quỹ chung tháng 11,https://placehold.co/150/10b981/ffffff?text=Quy,2025-11-01T09:00:00.000Z
+f2,2025-11-05,Nguyễn Văn An,100000,Đóng thêm phí phạt,https://placehold.co/150/ef4444/ffffff?text=Phat,2025-11-05T14:30:00.000Z
+f3,2025-11-15,Lê Văn Bình,200000,Đóng góp cá nhân,https://placehold.co/150/3b82f6/ffffff?text=Dong,2025-11-15T12:00:00.000Z
+f4,2025-11-16,Quỹ chung,-50000,Mua nước uống buổi tập,https://placehold.co/150/94a3b8/ffffff?text=Chi,2025-11-16T15:00:00.000Z
