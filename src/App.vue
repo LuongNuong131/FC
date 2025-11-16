@@ -100,7 +100,7 @@ onMounted(() => {
                       : 'text-white',
                   ]"
                 >
-                  Quản Lý Đội Bóng
+                  FC Đá Bay Bóng
                 </span>
                 <div
                   :class="[
@@ -495,10 +495,10 @@ onMounted(() => {
               >
                 ⚽
               </div>
-              <h3 class="text-xl font-black">Quản Lý Đội Bóng</h3>
+              <h3 class="text-xl font-black">FC Đá Bay Bóng</h3>
             </div>
             <p class="text-gray-400 text-sm">
-              Hệ thống quản lý đội bóng chuyên nghiệp với phân quyền admin/khách
+              Hệ thống quản lý đội bóng chuyên nghiệp
             </p>
           </div>
 
