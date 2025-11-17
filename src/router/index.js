@@ -73,24 +73,41 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  // === FIX: Thêm SCROLL BEHAVIOR để cuộn lên đầu trang khi chuyển route ===
+  scrollBehavior(to, from, savedPosition) {
+    // Nếu có vị trí cuộn đã lưu (ví dụ: khi nhấn nút Back/Forward), sử dụng nó
+    if (savedPosition) {
+      return savedPosition;
+    }
+    // Nếu không, cuộn về đầu trang (0, 0)
+    return { top: 0, left: 0 };
+  },
+  // =====================================================================
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  // Check auth state on first load
   const authStore = useAuthStore();
-
-  if (!authStore.isAuthenticated) {
+  if (!authStore.user) {
     authStore.checkAuth();
   }
 
-  if (to.meta.requiresAuth) {
-    if (!authStore.isAuthenticated) {
-      next("/login");
-    } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-      next("/");
-    } else {
-      next();
-    }
+  // Auth Guard Logic
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // If not logged in and requires auth, redirect to login
+    next("/login");
+  } else if (
+    to.meta.requiresAdmin &&
+    authStore.isAuthenticated &&
+    !authStore.isAdmin
+  ) {
+    // If logged in as guest but requires admin, redirect to dashboard
+    next("/");
+  } else if (to.name === "Login" && authStore.isAuthenticated) {
+    // If logged in and trying to go to login, redirect to dashboard
+    next("/");
   } else {
+    // Continue to route
     next();
   }
 });
