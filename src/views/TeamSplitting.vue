@@ -32,9 +32,8 @@ onMounted(() => {
 
 <template>
   <div class="space-y-8">
-    <!-- Header -->
     <div
-      class="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 rounded-3xl shadow-2xl p-8"
+      class="relative overflow-hidden bg-gradient-to-br from-blue-700 via-cyan-700 to-teal-700 rounded-3xl shadow-2xl p-8"
     >
       <div class="absolute inset-0 opacity-20">
         <div
@@ -59,7 +58,7 @@ onMounted(() => {
           <a
             href="/teams.csv"
             download
-            class="relative px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md border-2 border-white/30 text-white font-bold rounded-xl flex items-center space-x-2 transition-all duration-300"
+            class="relative px-6 py-3 glass-card text-white font-bold rounded-xl flex items-center space-x-2 transition-all duration-300"
             title="Tải file teams.csv để cấu hình đội"
           >
             <svg
@@ -81,7 +80,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
     <div
       v-if="teamStore.loading || playerStore.loading"
       class="text-center py-20"
@@ -94,7 +92,6 @@ onMounted(() => {
       </p>
     </div>
 
-    <!-- Error State -->
     <div
       v-else-if="teamStore.error || teamStore.teams.length === 0"
       class="bg-red-50 border-l-4 border-red-500 rounded-xl p-6"
@@ -108,16 +105,13 @@ onMounted(() => {
       </p>
     </div>
 
-    <!-- Teams Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:grid-cols-4">
-      <!-- Loop through Teams -->
       <div
         v-for="team in teamStore.teams"
         :key="team.id"
         class="bg-white rounded-2xl shadow-xl border-l-8 transition-all duration-500 transform hover:scale-[1.02] overflow-hidden"
         :class="[`border-${team.colorClass}`]"
       >
-        <!-- Team Header -->
         <div :class="[`bg-${team.colorClass}-50/70 p-6`]">
           <h3
             :class="[
@@ -147,17 +141,18 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Captain -->
-        <div :class="[`p-4 bg-white border-b border-gray-100`]">
+        <div
+          :class="[`p-4 bg-${team.colorClass}-100 border-b border-gray-100`]"
+        >
           <div
-            class="flex items-center justify-between space-x-3 cursor-pointer group p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+            class="flex items-center justify-between space-x-3 cursor-pointer group p-3 bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
             @click="handleViewPlayer(team.captainId)"
           >
             <div class="flex items-center space-x-3">
               <div
                 :class="[
-                  'w-8 h-8 rounded-full flex items-center justify-center text-xl shadow-lg flex-shrink-0',
-                  `bg-${team.colorClass} text-white`,
+                  'w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-xl flex-shrink-0',
+                  `bg-gradient-to-br from-${team.colorClass}-400 to-${team.colorClass}-600 text-white`,
                 ]"
               >
                 👑
@@ -174,7 +169,7 @@ onMounted(() => {
               </div>
             </div>
             <svg
-              class="w-5 h-5 text-gray-400 group-hover:text-gray-700 transition-colors"
+              class="w-5 h-5 text-gray-400 group-hover:text-gray-700 transition-colors group-hover:translate-x-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -189,10 +184,9 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Player List -->
-        <div class="p-4 max-h-[400px] overflow-y-auto space-y-1">
+        <div class="p-4 max-h-[400px] overflow-y-auto space-y-2">
           <p
-            class="text-xs font-bold text-gray-500 uppercase tracking-wider px-2 mb-2"
+            class="text-xs font-bold text-gray-500 uppercase tracking-wider px-2 sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-1"
           >
             Thành viên ({{ team.playerIds.length - 1 }}):
           </p>
@@ -201,14 +195,14 @@ onMounted(() => {
               (id) => id !== team.captainId
             )"
             :key="playerId"
-            class="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+            class="flex items-center justify-between p-3 bg-white rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-gray-100 hover:border-gray-200 transform hover:shadow-sm"
             @click="handleViewPlayer(playerId)"
           >
             <div class="flex items-center space-x-3">
               <div
                 :class="[
                   'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-md',
-                  `bg-${team.colorClass}-400`,
+                  `bg-gradient-to-br from-${team.colorClass}-400 to-${team.colorClass}-600`,
                 ]"
               >
                 {{ getPlayerDetail(playerId)?.jerseyNumber || "?" }}

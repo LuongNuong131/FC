@@ -5,6 +5,7 @@ import { ref, computed } from "vue";
 import Papa from "papaparse";
 
 const PLAYERS_CSV_PATH = "/players.csv";
+const LOCAL_STORAGE_KEY = "playerData_temp"; // Khóa mới cho Local Storage
 
 export const usePlayerStore = defineStore("player", () => {
   const players = ref([]);
@@ -12,18 +13,46 @@ export const usePlayerStore = defineStore("player", () => {
   const loading = ref(false);
   const error = ref(null);
 
-  const generateUniqueId = (prefix = "p") => {
-    return (
-      prefix +
-      Date.now().toString(36) +
-      Math.random().toString(36).substring(2, 5)
-    );
+  // --- Helper: Lưu vào Local Storage ---
+  const savePlayersToLocal = (data) => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+  };
+
+  // --- Helper: Xử lý định dạng dữ liệu (Chuyển đổi date/number) ---
+  const formatData = (data) => {
+    return data.map((p) => ({
+      ...p,
+      // Đảm bảo date là Date object (hoặc null)
+      dob: p.dob ? (p.dob instanceof Date ? p.dob : new Date(p.dob)) : null,
+      // Đảm bảo các trường số
+      height_cm: p.height_cm ? Number(p.height_cm) : null,
+      weight_kg: p.weight_kg ? Number(p.weight_kg) : null,
+      jerseyNumber: p.jerseyNumber ? Number(p.jerseyNumber) : null,
+      totalAttendance: p.totalAttendance ? Number(p.totalAttendance) : 0,
+    }));
   };
 
   // --- CSV Logic (Fetching) ---
   const fetchPlayers = async () => {
     loading.value = true;
     error.value = null;
+
+    // 1. THỬ TẢI DỮ LIỆU TỪ LOCAL STORAGE (Dữ liệu tạm thời mới nhất)
+    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        players.value = formatData(parsedData);
+        loading.value = false;
+        console.log("Loaded players from Local Storage.");
+        return; // Ưu tiên Local Storage nếu có
+      } catch (e) {
+        console.error("Error parsing Local Storage data:", e);
+        // Tiếp tục load từ CSV nếu Local Storage bị lỗi
+      }
+    }
+
+    // 2. TẢI DỮ LIỆU TỪ CSV GỐC (Nếu Local Storage trống hoặc lỗi)
     try {
       const response = await fetch(PLAYERS_CSV_PATH);
       const csvText = await response.text();
@@ -39,17 +68,10 @@ export const usePlayerStore = defineStore("player", () => {
         throw new Error("Lỗi định dạng file players.csv");
       }
 
-      // Format data: date object, numbers
-      const formattedPlayers = data.map((p) => ({
-        ...p,
-        dob: p.dob ? new Date(p.dob) : null,
-        height_cm: p.height_cm ? Number(p.height_cm) : null,
-        weight_kg: p.weight_kg ? Number(p.weight_kg) : null,
-        jerseyNumber: p.jerseyNumber ? Number(p.jerseyNumber) : null,
-        totalAttendance: p.totalAttendance ? Number(p.totalAttendance) : 0,
-      }));
-
+      const formattedPlayers = formatData(data);
       players.value = formattedPlayers;
+      // Lưu vào Local Storage để sử dụng tạm thời cho lần sau
+      savePlayersToLocal(formattedPlayers);
     } catch (err) {
       error.value =
         "Không thể tải file players.csv. Hãy đảm bảo file đã tồn tại trong public/. Chi tiết: " +
@@ -60,7 +82,15 @@ export const usePlayerStore = defineStore("player", () => {
     }
   };
 
-  // --- Utility Functions ---
+  // ... (Các hàm utility khác)
+
+  const generateUniqueId = (prefix = "p") => {
+    return (
+      prefix +
+      Date.now().toString(36) +
+      Math.random().toString(36).substring(2, 5)
+    );
+  };
 
   const calculateBMI = (height_cm, weight_kg) => {
     if (!height_cm || !weight_kg) return null;
@@ -86,7 +116,7 @@ export const usePlayerStore = defineStore("player", () => {
     };
   };
 
-  // --- CRUD (Chỉ trên Memory) ---
+  // --- CRUD (Cập nhật cả Store và Local Storage) ---
 
   const fetchPlayer = (id) => {
     loading.value = true;
@@ -116,6 +146,7 @@ export const usePlayerStore = defineStore("player", () => {
         : null,
     };
     players.value.push(newPlayer);
+    savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
     loading.value = false;
   };
 
@@ -134,6 +165,7 @@ export const usePlayerStore = defineStore("player", () => {
           ? Number(updatedData.jerseyNumber)
           : null,
       };
+      savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
     }
     loading.value = false;
   };
@@ -144,12 +176,14 @@ export const usePlayerStore = defineStore("player", () => {
     if (playerToUpdate) {
       playerToUpdate.totalAttendance =
         (playerToUpdate.totalAttendance || 0) + 1;
-      // Dữ liệu chỉ trong memory, cần export thủ công
+      savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
+      // Dữ liệu chỉ trong memory/local storage, cần export thủ công
     }
   };
 
   // Export file players.csv (NGƯỜI DÙNG PHẢI COPY VÀO PUBLIC/ THỦ CÔNG)
   const exportPlayersToCSV = () => {
+    // Luôn lấy dữ liệu từ Store (đã được đồng bộ với Local Storage)
     const dataToExport = players.value.map((p) => ({
       id: p.id,
       name: p.name,
@@ -179,8 +213,10 @@ export const usePlayerStore = defineStore("player", () => {
     link.click();
     document.body.removeChild(link);
 
+    // Xóa Local Storage sau khi export thành công (để lần sau load từ CSV thật)
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     alert(
-      "Đã xuất file players.csv. Vui lòng copy file này vào thư mục public/ để lưu trữ vĩnh viễn dữ liệu cầu thủ và attendance!"
+      "Đã xuất file players.csv. Vui lòng copy file này vào thư mục public/ để lưu trữ vĩnh viễn dữ liệu cầu thủ và attendance! Sau đó, khởi động lại server để đảm bảo."
     );
   };
 

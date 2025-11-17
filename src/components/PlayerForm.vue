@@ -243,8 +243,16 @@ const handleSubmit = async () => {
 
   if (isEditing.value) {
     await playerStore.updatePlayer(playerId.value, dataToSubmit);
+    // THÊM CẢNH BÁO
+    alert(
+      "Đã CẬP NHẬT vào bộ nhớ tạm! QUAN TRỌNG: Bạn cần nhấn nút 'Xuất CSV' ở trang Danh Sách để lưu vĩnh viễn!"
+    );
   } else {
     await playerStore.addPlayer(dataToSubmit);
+    // THÊM CẢNH BÁO
+    alert(
+      "Đã THÊM MỚI vào bộ nhớ tạm! QUAN TRỌNG: Bạn cần nhấn nút 'Xuất CSV' ở trang Danh Sách để lưu vĩnh viễn!"
+    );
   }
   router.push("/players");
 };

@@ -14,7 +14,7 @@ const authStore = useAuthStore();
 const showAttendanceModal = ref(false);
 const selectedSession = ref(null);
 
-// Computed Statistics
+// Computed Statistics (Không thay đổi logic)
 const advancedStats = computed(() => {
   const players = playerStore.players || [];
   const sessions = attendanceStore.sessions || [];
@@ -22,12 +22,10 @@ const advancedStats = computed(() => {
   const totalPlayers = players.length;
   const totalSessions = sessions.length;
 
-  // Tổng lượt tham gia = tổng số người trong TẤT CẢ sessions
   const totalAttendances = sessions.reduce((sum, session) => {
     return sum + (session.attendees?.length || 0);
   }, 0);
 
-  // TB tham gia/người = Trung bình mỗi người đi bao nhiêu buổi
   const avgAttendance =
     totalPlayers > 0
       ? (
@@ -36,31 +34,26 @@ const advancedStats = computed(() => {
         ).toFixed(1)
       : 0;
 
-  // Active players (attended > 3 sessions)
   const activePlayers = players.filter(
     (p) => (p.totalAttendance || 0) > 3
   ).length;
   const activeRate =
     totalPlayers > 0 ? ((activePlayers / totalPlayers) * 100).toFixed(0) : 0;
 
-  // Position distribution
   const positionStats = players.reduce((acc, p) => {
     const pos = p.position || "Unknown";
     acc[pos] = (acc[pos] || 0) + 1;
     return acc;
   }, {});
 
-  // Top performers
   const topPerformers = [...players]
     .sort((a, b) => (b.totalAttendance || 0) - (a.totalAttendance || 0))
     .slice(0, 5);
 
-  // Recent sessions
   const recentSessions = [...sessions]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
-  // Best month (month with most sessions)
   const monthStats = sessions.reduce((acc, s) => {
     const month = new Date(s.date).toLocaleDateString("vi-VN", {
       month: "long",
@@ -122,9 +115,8 @@ onMounted(() => {
 
 <template>
   <div class="space-y-8">
-    <!-- Header -->
     <div
-      class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl p-8"
+      class="relative overflow-hidden bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-700 rounded-3xl shadow-2xl p-8"
     >
       <div class="absolute inset-0 opacity-20">
         <div
@@ -149,7 +141,7 @@ onMounted(() => {
             </p>
           </div>
           <div
-            class="px-6 py-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30"
+            class="px-6 py-3 glass-card rounded-2xl border border-white/30 text-white"
           >
             <p class="text-white text-sm font-bold">
               📅
@@ -167,7 +159,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
     <div
       v-if="playerStore.loading || attendanceStore.loading"
       class="flex items-center justify-center py-20"
@@ -181,7 +172,6 @@ onMounted(() => {
     </div>
 
     <div v-else class="space-y-8">
-      <!-- Main Stats -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <CardStat
           title="Tổng Số Cầu Thủ"
@@ -213,7 +203,6 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Secondary Stats -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <CardStat
           title="Tổng Lượt Tham Gia"
@@ -246,13 +235,11 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Top Performers & Position Distribution -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Performers -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
-          <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6">
+          <div class="bg-gradient-to-r from-green-600 to-emerald-700 p-6">
             <h2 class="text-2xl font-black text-white flex items-center">
               <span class="text-3xl mr-3">🏆</span>
               Top Cầu Thủ Chăm Chỉ
@@ -268,7 +255,7 @@ onMounted(() => {
               <div
                 v-for="(player, index) in advancedStats.topPerformers"
                 :key="player.id"
-                class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-green-50 transition-all duration-300 group cursor-pointer"
+                class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-green-50 transition-all duration-300 group cursor-pointer hover:shadow-md transform hover:scale-[1.01]"
               >
                 <div class="relative">
                   <div
@@ -326,11 +313,10 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Position Distribution -->
         <div
           class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
         >
-          <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6">
             <h2 class="text-2xl font-black text-white flex items-center">
               <span class="text-3xl mr-3">📊</span>
               Phân Bố Vị Trí
@@ -394,11 +380,10 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Recent Activity -->
       <div
         class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
       >
-        <div class="bg-gradient-to-r from-purple-500 to-pink-600 p-6">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-700 p-6">
           <h2 class="text-2xl font-black text-white flex items-center">
             <span class="text-3xl mr-3">📋</span>
             Hoạt Động Gần Đây
@@ -413,7 +398,7 @@ onMounted(() => {
             <div
               v-for="(session, index) in advancedStats.recentSessions"
               :key="session.id"
-              class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-purple-50 transition-all duration-300 border-l-4 border-purple-500 cursor-pointer"
+              class="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-transparent rounded-xl hover:from-purple-50 transition-all duration-300 border-l-4 border-purple-500 cursor-pointer hover:shadow-md transform hover:scale-[1.01]"
               :style="{ animationDelay: `${index * 100}ms` }"
               @click="handleViewSessionDetail(session)"
             >
@@ -490,7 +475,13 @@ onMounted(() => {
               </div>
             </div>
           </div>
+        </div>
 
+        <div class="p-6">
+          <div
+            v-if="advancedStats.recentSessions.length > 0"
+            class="space-y-3"
+          ></div>
           <div v-else class="text-center py-10 text-gray-400">
             <p class="text-4xl mb-2">🏃</p>
             <p>Chưa có dữ liệu tham gia</p>
@@ -498,11 +489,10 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Quick Actions -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <router-link
           to="/players"
-          class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
@@ -518,7 +508,7 @@ onMounted(() => {
 
         <router-link
           to="/teams"
-          class="group relative overflow-hidden bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden bg-gradient-to-br from-cyan-600 to-teal-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
@@ -532,7 +522,7 @@ onMounted(() => {
 
         <router-link
           to="/fund"
-          class="group relative overflow-hidden bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden bg-gradient-to-br from-yellow-600 to-orange-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
@@ -547,7 +537,7 @@ onMounted(() => {
         <router-link
           v-if="authStore.isAdmin"
           to="/attendance"
-          class="group relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
@@ -561,7 +551,7 @@ onMounted(() => {
 
         <div
           v-else
-          class="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden bg-gradient-to-br from-purple-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
         >
           <div
             class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"
@@ -575,7 +565,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Modal for Guest/User to view attendance detail -->
     <AttendanceDetailModal
       :show="showAttendanceModal"
       :session="selectedSession"
@@ -615,5 +604,10 @@ onMounted(() => {
 }
 .space-y-4 > *:nth-child(5) {
   animation-delay: 0.5s;
+}
+
+.shadow-3xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 40px rgba(0, 0, 0, 0.1);
 }
 </style>
