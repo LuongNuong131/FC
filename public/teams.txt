@@ -1,0 +1,5 @@
+id,teamName,captainId,playerIds
+t1,Đội Xanh,p1,"p1,p2,p5,p6,p9,p21"
+t2,Đội Đỏ,p3,"p3,p4,p7,p10,p11"
+t3,Đội Vàng,p8,"p8,p12,p13,p16,p17"
+t4,Đội Tím,p14,"p14,p15,p18,p19,p20"

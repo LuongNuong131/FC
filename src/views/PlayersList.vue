@@ -28,28 +28,38 @@ const sortOptions = [
   { value: "position", label: "Vị trí" },
 ];
 
+// --- FIX LOGIC TÌM KIẾM ---
 const filteredPlayers = computed(() => {
+  // Copy mảng để tránh mutate state gốc
   let result = [...playerStore.players];
 
+  // 1. Lọc theo từ khóa (An toàn: Chuyển về string và check null)
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        (p.phone && p.phone.includes(query)) ||
-        (p.jerseyNumber && p.jerseyNumber.toString().includes(query))
-    );
+    const query = searchQuery.value.toLowerCase().trim();
+    result = result.filter((p) => {
+      const name = p.name ? String(p.name).toLowerCase() : "";
+      const phone = p.phone ? String(p.phone).toLowerCase() : "";
+      const jersey = p.jerseyNumber ? String(p.jerseyNumber) : "";
+
+      return (
+        name.includes(query) || phone.includes(query) || jersey.includes(query)
+      );
+    });
   }
 
+  // 2. Lọc theo vị trí
   if (positionFilter.value !== "all") {
     result = result.filter((p) => p.position === positionFilter.value);
   }
 
+  // 3. Sắp xếp
   result.sort((a, b) => {
     let comparison = 0;
     switch (sortBy.value) {
       case "name":
-        comparison = a.name.localeCompare(b.name);
+        const nameA = a.name ? a.name.toLowerCase() : "";
+        const nameB = b.name ? b.name.toLowerCase() : "";
+        comparison = nameA.localeCompare(nameB);
         break;
       case "jerseyNumber":
         comparison = (a.jerseyNumber || 999) - (b.jerseyNumber || 999);
@@ -58,7 +68,9 @@ const filteredPlayers = computed(() => {
         comparison = (a.totalAttendance || 0) - (b.totalAttendance || 0);
         break;
       case "position":
-        comparison = (a.position || "").localeCompare(b.position || "");
+        const posA = a.position || "";
+        const posB = b.position || "";
+        comparison = posA.localeCompare(posB);
         break;
     }
     return sortOrder.value === "asc" ? comparison : -comparison;
@@ -85,6 +97,11 @@ const clearFilters = () => {
 
 const handleExportPlayers = () => {
   playerStore.exportPlayersToCSV();
+};
+
+// Nút Reset cứng dành cho Admin để fix lỗi cache
+const handleHardReset = () => {
+  playerStore.resetDatabase();
 };
 
 onMounted(() => {
@@ -116,7 +133,29 @@ onMounted(() => {
           </p>
         </div>
 
-        <div class="mt-4 sm:mt-0 flex space-x-3">
+        <div class="mt-4 sm:mt-0 flex flex-wrap gap-3">
+          <button
+            v-if="authStore.isAdmin"
+            @click="handleHardReset"
+            class="px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg transition-all flex items-center space-x-2"
+            title="Tải lại dữ liệu gốc từ file CSV (Xóa bộ nhớ tạm)"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span>Reset Data</span>
+          </button>
+
           <button
             v-if="authStore.isAdmin"
             @click="handleExportPlayers"
@@ -138,6 +177,7 @@ onMounted(() => {
             </svg>
             <span>Xuất CSV</span>
           </button>
+
           <router-link
             v-if="authStore.isAdmin"
             to="/players/new"
@@ -197,6 +237,12 @@ onMounted(() => {
         <div>
           <h3 class="text-lg font-bold text-red-800">Lỗi tải dữ liệu</h3>
           <p class="text-red-600 mt-1">{{ playerStore.error }}</p>
+          <button
+            @click="handleHardReset"
+            class="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700"
+          >
+            Thử tải lại từ gốc
+          </button>
         </div>
       </div>
     </div>
@@ -295,42 +341,15 @@ onMounted(() => {
                 />
               </svg>
             </button>
-
             <button
               @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
               class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all flex items-center justify-center"
               title="Chế độ xem"
             >
-              <svg
-                v-if="viewMode === 'grid'"
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-              <svg
-                v-else
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
+              <span class="text-xl">{{
+                viewMode === "grid" ? "📋" : "🔲"
+              }}</span>
             </button>
-
             <button
               v-if="searchQuery || positionFilter !== 'all'"
               @click="clearFilters"
@@ -353,64 +372,6 @@ onMounted(() => {
             </button>
           </div>
         </div>
-
-        <div
-          v-if="searchQuery || positionFilter !== 'all'"
-          class="mt-4 pt-4 border-t border-gray-200"
-        >
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-semibold text-gray-600">Đang lọc:</span>
-            <span
-              v-if="searchQuery"
-              class="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-full"
-            >
-              Tìm: "{{ searchQuery }}"
-              <button
-                @click="searchQuery = ''"
-                class="ml-2 hover:text-indigo-900"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </span>
-            <span
-              v-if="positionFilter !== 'all'"
-              class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full"
-            >
-              Vị trí:
-              {{ positions.find((p) => p.value === positionFilter)?.label }}
-              <button
-                @click="positionFilter = 'all'"
-                class="ml-2 hover:text-purple-900"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </span>
-          </div>
-        </div>
       </div>
 
       <div class="flex items-center justify-between px-4">
@@ -418,12 +379,6 @@ onMounted(() => {
           Hiển thị <span class="text-indigo-600">{{ stats.filtered }}</span> /
           {{ stats.total }} cầu thủ
         </p>
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-gray-500">Chế độ xem:</span>
-          <span class="font-semibold text-gray-700">{{
-            viewMode === "grid" ? "🔲 Lưới" : "📋 Danh sách"
-          }}</span>
-        </div>
       </div>
 
       <div
@@ -433,27 +388,22 @@ onMounted(() => {
         <div
           class="inline-block p-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl mb-6"
         >
-          <svg
-            class="w-24 h-24 text-gray-300 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
+          <span class="text-6xl text-gray-300">📂</span>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">
-          Chưa có cầu thủ nào
+          Chưa có dữ liệu cầu thủ
         </h3>
         <p class="text-gray-600 mb-6">
-          Thêm cầu thủ vào file
+          Hãy đảm bảo file
           <code class="px-2 py-1 bg-gray-200 rounded">public/players.csv</code>
+          đã có dữ liệu.
         </p>
+        <button
+          @click="handleHardReset"
+          class="text-indigo-600 font-bold hover:underline"
+        >
+          Thử tải lại dữ liệu
+        </button>
       </div>
 
       <div
@@ -493,11 +443,12 @@ onMounted(() => {
             :src="player.imageUrl || 'https://placehold.co/150'"
             :alt="player.name"
             class="w-20 h-20 rounded-full object-cover border-4 border-indigo-500"
+            onerror="this.onerror=null; this.src='https://placehold.co/150';"
           />
           <div class="flex-1">
             <h3 class="text-xl font-black text-gray-900">{{ player.name }}</h3>
             <p class="text-sm text-gray-500">
-              {{ player.position }} • {{ player.phone }}
+              {{ player.position }} • {{ player.phone || "Chưa có SĐT" }}
             </p>
           </div>
           <div class="text-center">

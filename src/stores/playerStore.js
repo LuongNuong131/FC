@@ -5,11 +5,11 @@ import { ref, computed } from "vue";
 import Papa from "papaparse";
 
 const PLAYERS_CSV_PATH = "/players.csv";
-const LOCAL_STORAGE_KEY = "playerData_temp"; // Khóa mới cho Local Storage
+const LOCAL_STORAGE_KEY = "playerData_v3"; // Đổi key để tránh conflict cache cũ
 
 export const usePlayerStore = defineStore("player", () => {
   const players = ref([]);
-  const player = ref(null); // Cho PlayerDetail
+  const player = ref(null);
   const loading = ref(false);
   const error = ref(null);
 
@@ -18,43 +18,54 @@ export const usePlayerStore = defineStore("player", () => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
   };
 
-  // --- Helper: Xử lý định dạng dữ liệu (Chuyển đổi date/number) ---
+  // --- Helper: Format dữ liệu an toàn (Chống null/undefined) ---
   const formatData = (data) => {
     return data.map((p) => ({
-      ...p,
-      // Đảm bảo date là Date object (hoặc null)
-      dob: p.dob ? (p.dob instanceof Date ? p.dob : new Date(p.dob)) : null,
-      // Đảm bảo các trường số
+      id: p.id || `p_${Math.random().toString(36).substr(2, 9)}`, // Fallback ID nếu thiếu
+      name: p.name ? String(p.name).trim() : "Chưa đặt tên",
+      phone: p.phone ? String(p.phone) : "",
+      // Xử lý ngày tháng an toàn
+      dob: p.dob ? new Date(p.dob) : null,
       height_cm: p.height_cm ? Number(p.height_cm) : null,
       weight_kg: p.weight_kg ? Number(p.weight_kg) : null,
+      position: p.position ? String(p.position) : "N/A",
       jerseyNumber: p.jerseyNumber ? Number(p.jerseyNumber) : null,
+      imageUrl: p.imageUrl ? String(p.imageUrl) : "",
       totalAttendance: p.totalAttendance ? Number(p.totalAttendance) : 0,
     }));
   };
 
-  // --- CSV Logic (Fetching) ---
-  const fetchPlayers = async () => {
+  // --- Action: Load dữ liệu (Core Logic) ---
+  const fetchPlayers = async (forceCSV = false) => {
     loading.value = true;
     error.value = null;
 
-    // 1. THỬ TẢI DỮ LIỆU TỪ LOCAL STORAGE (Dữ liệu tạm thời mới nhất)
-    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        players.value = formatData(parsedData);
-        loading.value = false;
-        console.log("Loaded players from Local Storage.");
-        return; // Ưu tiên Local Storage nếu có
-      } catch (e) {
-        console.error("Error parsing Local Storage data:", e);
-        // Tiếp tục load từ CSV nếu Local Storage bị lỗi
+    // 1. Nếu KHÔNG bắt buộc đọc CSV, thử đọc LocalStorage trước
+    if (!forceCSV) {
+      const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          // Chỉ dùng LocalStorage nếu có dữ liệu (>0)
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            players.value = formatData(parsedData);
+            loading.value = false;
+            console.log("Loaded from Local Storage ✅");
+            return;
+          }
+        } catch (e) {
+          console.warn("Local Storage corrupted, falling back to CSV...");
+        }
       }
     }
 
-    // 2. TẢI DỮ LIỆU TỪ CSV GỐC (Nếu Local Storage trống hoặc lỗi)
+    // 2. Đọc từ file CSV (Nếu LocalStorage trống hoặc forceCSV=true)
     try {
-      const response = await fetch(PLAYERS_CSV_PATH);
+      console.log("Fetching CSV from:", PLAYERS_CSV_PATH);
+      const response = await fetch(PLAYERS_CSV_PATH, { cache: "no-store" }); // Thêm no-store để tránh browser cache file cũ
+
+      if (!response.ok) throw new Error("Không tìm thấy file players.csv");
+
       const csvText = await response.text();
 
       const { data, errors } = Papa.parse(csvText, {
@@ -63,27 +74,38 @@ export const usePlayerStore = defineStore("player", () => {
         dynamicTyping: true,
       });
 
-      if (errors.length > 0) {
+      if (errors.length > 0 && data.length === 0) {
         console.error("CSV Parsing Errors:", errors);
-        throw new Error("Lỗi định dạng file players.csv");
+        throw new Error("Lỗi đọc nội dung file CSV");
       }
 
       const formattedPlayers = formatData(data);
       players.value = formattedPlayers;
-      // Lưu vào Local Storage để sử dụng tạm thời cho lần sau
+
+      // Lưu lại vào LocalStorage để dùng cho các lần sau (edit, add...)
       savePlayersToLocal(formattedPlayers);
+      console.log("Loaded from CSV & Saved to Local ✅");
     } catch (err) {
-      error.value =
-        "Không thể tải file players.csv. Hãy đảm bảo file đã tồn tại trong public/. Chi tiết: " +
-        err.message;
+      error.value = `Lỗi tải dữ liệu: ${err.message}. Hãy kiểm tra file public/players.csv`;
+      console.error(err);
       players.value = [];
     } finally {
       loading.value = false;
     }
   };
 
-  // ... (Các hàm utility khác)
+  // --- Action: Reset Database (Xóa Cache, đọc lại gốc) ---
+  const resetDatabase = () => {
+    if (
+      confirm("Bạn có chắc muốn xóa mọi thay đổi và tải lại từ file CSV gốc?")
+    ) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      fetchPlayers(true); // Force CSV load
+      alert("Đã reset dữ liệu về gốc!");
+    }
+  };
 
+  // ... Các hàm CRUD khác giữ nguyên (addPlayer, updatePlayer...)
   const generateUniqueId = (prefix = "p") => {
     return (
       prefix +
@@ -92,61 +114,19 @@ export const usePlayerStore = defineStore("player", () => {
     );
   };
 
-  const calculateBMI = (height_cm, weight_kg) => {
-    if (!height_cm || !weight_kg) return null;
-    const height_m = height_cm / 100;
-    const bmi = weight_kg / (height_m * height_m);
-    return parseFloat(bmi.toFixed(1));
-  };
-
-  const getBMIStatus = (bmi) => {
-    if (!bmi) return "N/A";
-    if (bmi < 18.5) return "Thiếu cân";
-    if (bmi >= 18.5 && bmi <= 24.9) return "Bình thường";
-    if (bmi >= 25.0 && bmi <= 29.9) return "Thừa cân";
-    return "Béo phì";
-  };
-
-  const getPlayerWithBMI = (player) => {
-    const bmi = calculateBMI(player.height_cm, player.weight_kg);
-    return {
-      ...player,
-      bmi: bmi,
-      bmiStatus: getBMIStatus(bmi),
-    };
-  };
-
-  // --- CRUD (Cập nhật cả Store và Local Storage) ---
-
-  const fetchPlayer = (id) => {
-    loading.value = true;
-    player.value = players.value.find((p) => p.id === id) || null;
-    loading.value = false;
-    if (!player.value) {
-      error.value = "Không tìm thấy cầu thủ.";
-    }
-  };
-
   const addPlayer = async (newPlayerData) => {
     loading.value = true;
     const newPlayer = {
       ...newPlayerData,
       id: generateUniqueId(),
       totalAttendance: 0,
-      // Đảm bảo các trường số/ngày tháng được format đúng
       dob: newPlayerData.dob ? new Date(newPlayerData.dob) : null,
-      height_cm: newPlayerData.height_cm
-        ? Number(newPlayerData.height_cm)
-        : null,
-      weight_kg: newPlayerData.weight_kg
-        ? Number(newPlayerData.weight_kg)
-        : null,
-      jerseyNumber: newPlayerData.jerseyNumber
-        ? Number(newPlayerData.jerseyNumber)
-        : null,
+      height_cm: Number(newPlayerData.height_cm),
+      weight_kg: Number(newPlayerData.weight_kg),
+      jerseyNumber: Number(newPlayerData.jerseyNumber),
     };
     players.value.push(newPlayer);
-    savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
+    savePlayersToLocal(players.value);
     loading.value = false;
   };
 
@@ -154,41 +134,59 @@ export const usePlayerStore = defineStore("player", () => {
     loading.value = true;
     const index = players.value.findIndex((p) => p.id === id);
     if (index !== -1) {
-      // Cập nhật và đảm bảo format lại date/number
       players.value[index] = {
         ...players.value[index],
         ...updatedData,
         dob: updatedData.dob ? new Date(updatedData.dob) : null,
-        height_cm: updatedData.height_cm ? Number(updatedData.height_cm) : null,
-        weight_kg: updatedData.weight_kg ? Number(updatedData.weight_kg) : null,
-        jerseyNumber: updatedData.jerseyNumber
-          ? Number(updatedData.jerseyNumber)
-          : null,
+        height_cm: Number(updatedData.height_cm),
+        weight_kg: Number(updatedData.weight_kg),
+        jerseyNumber: Number(updatedData.jerseyNumber),
       };
-      savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
+      savePlayersToLocal(players.value);
     }
     loading.value = false;
   };
 
-  // Tăng attendance khi điểm danh
+  const fetchPlayer = (id) => {
+    loading.value = true;
+    player.value = players.value.find((p) => p.id === id) || null;
+    loading.value = false;
+    if (!player.value) error.value = "Không tìm thấy cầu thủ.";
+  };
+
+  const getPlayerWithBMI = (player) => {
+    if (!player) return {};
+    const h = player.height_cm;
+    const w = player.weight_kg;
+    let bmi = null;
+    let status = "N/A";
+
+    if (h && w) {
+      const h_m = h / 100;
+      bmi = (w / (h_m * h_m)).toFixed(1);
+      if (bmi < 18.5) status = "Thiếu cân";
+      else if (bmi <= 24.9) status = "Bình thường";
+      else if (bmi <= 29.9) status = "Thừa cân";
+      else status = "Béo phì";
+    }
+    return { ...player, bmi, bmiStatus: status };
+  };
+
   const incrementAttendance = (playerId) => {
     const playerToUpdate = players.value.find((p) => p.id === playerId);
     if (playerToUpdate) {
       playerToUpdate.totalAttendance =
         (playerToUpdate.totalAttendance || 0) + 1;
-      savePlayersToLocal(players.value); // <--- LƯU VÀO LOCAL STORAGE
-      // Dữ liệu chỉ trong memory/local storage, cần export thủ công
+      savePlayersToLocal(players.value);
     }
   };
 
-  // Export file players.csv (NGƯỜI DÙNG PHẢI COPY VÀO PUBLIC/ THỦ CÔNG)
   const exportPlayersToCSV = () => {
-    // Luôn lấy dữ liệu từ Store (đã được đồng bộ với Local Storage)
     const dataToExport = players.value.map((p) => ({
       id: p.id,
       name: p.name,
       phone: p.phone || "",
-      dob: p.dob ? p.dob.toISOString().split("T")[0] : "", // Chuyển Date về YYYY-MM-DD
+      dob: p.dob ? p.dob.toISOString().split("T")[0] : "",
       height_cm: p.height_cm || "",
       weight_kg: p.weight_kg || "",
       position: p.position || "",
@@ -201,7 +199,7 @@ export const usePlayerStore = defineStore("player", () => {
       delimiter: ",",
       header: true,
       encoding: "utf-8",
-      bom: true, // Thêm BOM để Excel đọc đúng tiếng Việt
+      bom: true,
     });
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -212,12 +210,6 @@ export const usePlayerStore = defineStore("player", () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    // Xóa Local Storage sau khi export thành công (để lần sau load từ CSV thật)
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    alert(
-      "Đã xuất file players.csv. Vui lòng copy file này vào thư mục public/ để lưu trữ vĩnh viễn dữ liệu cầu thủ và attendance! Sau đó, khởi động lại server để đảm bảo."
-    );
   };
 
   return {
@@ -226,6 +218,7 @@ export const usePlayerStore = defineStore("player", () => {
     loading,
     error,
     fetchPlayers,
+    resetDatabase, // Export hàm này để dùng ở component
     fetchPlayer,
     addPlayer,
     updatePlayer,

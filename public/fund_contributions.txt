@@ -1,0 +1,2 @@
+id,date,contributor,amount,note,imageUrl,createdAt
+f1,2025-11-01,Trần Quang Lương,500000,Quỹ chung tháng 11,https://placehold.co/150/10b981/ffffff?text=Quy,2025-11-01T09:00:00.000Z
