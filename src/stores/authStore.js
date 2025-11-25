@@ -45,15 +45,18 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.setItem("user", JSON.stringify(user.value));
   };
 
+  // --- PHẦN ĐÃ SỬA ĐỔI ---
   const logout = () => {
+    // 1. Xóa state user trong Pinia
     user.value = null;
+
+    // 2. Xóa dữ liệu trong LocalStorage
     localStorage.removeItem("user");
-    // Force reload on logout to clear all Pinia state (optional but safer for CSV-based system)
+
+    // 3. Chuyển hướng về trang login bằng Router (Không reload trang)
     router.push("/login");
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
   };
+  // -----------------------
 
   // Tự động kiểm tra khi store được tạo
   checkAuth();
